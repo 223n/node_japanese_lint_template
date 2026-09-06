@@ -28,7 +28,9 @@ check() {
 # ---- 参照先のリポジトリを作る
 
 mkdir -p "$work/src"
-tar -c --exclude=node_modules --exclude=.git -C "$root" . | tar -x -C "$work/src"
+# パイプの左側の失敗は $? に出ないため、この行だけ pipefail を効かせる
+( set -o pipefail; tar -c --exclude=node_modules --exclude=.git -C "$root" . | tar -x -C "$work/src" ) \
+  || { echo "作業木の複製に失敗した" >&2; exit 2; }
 (
   cd "$work/src" || exit 1
   git init -q

@@ -17,8 +17,20 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
+import { fileURLToPath } from 'node:url'
 
-const VERSION = '1.0.0'
+/** 版は package.json から読む。二重に持つと必ず食い違う */
+const VERSION = (() => {
+  try {
+    const here = path.dirname(fileURLToPath(import.meta.url))
+    const pkg = JSON.parse(
+      fs.readFileSync(path.join(here, '..', 'package.json'), 'utf8'),
+    )
+    return pkg.version ?? '0.0.0'
+  } catch {
+    return '0.0.0'
+  }
+})()
 
 /** 設定ファイルとして探す名前。上から順に見る */
 const CONFIG_NAMES = [
@@ -75,7 +87,7 @@ function parseArgs(argv) {
     const arg = argv[i]
     const takeValue = () => {
       const value = argv[i + 1]
-      if (value === undefined) fail(`${arg} には値が要る`)
+      if (value === undefined || value === '') fail(`${arg} には値が要る`)
       i += 1
       return value
     }
@@ -192,10 +204,15 @@ function loadConfig(configPath) {
   } catch (error) {
     return fail(`設定ファイルを読めない: ${configPath}（${error.message}）`)
   }
+  // BOM が付いていると JSON.parse が先頭で落ちる。理由が分かりにくいので先に取る
+  const text = raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw
   try {
-    return JSON.parse(stripJsonComments(raw))
+    return JSON.parse(stripJsonComments(text))
   } catch (error) {
-    return fail(`設定ファイルを解釈できない: ${configPath}（${error.message}）`)
+    return fail(
+      `設定ファイルを解釈できない: ${configPath}（${error.message}）\n` +
+        '  コメントは書けるが、末尾のカンマは書けない。',
+    )
   }
 }
 
@@ -499,13 +516,19 @@ function reportText(violations, targets, report) {
     process.stdout.write(`${v.file}:${v.line}  ${v.code} ${v.message}\n`)
     process.stdout.write(`    ${v.text}\n`)
   }
-  const markers = [...new Set(targets.map((t) => t.marker))]
+  // 違反が出た対象の断りの語だけを示す。
+  // 関係のない対象の語を出すと、そのまま書いて効かない
+  const hit = new Set(violations.map((v) => v.target))
+  const markers = [
+    ...new Set(targets.filter((t) => hit.has(t.name)).map((t) => t.marker)),
+  ]
+  const examples = markers.map((m) => `${m}: 理由`).join(' / ')
   process.stdout.write('\n')
   process.stdout.write(
     `禁じた語彙が ${violations.length} 件見つかりました（${report.scanned} 件を検査）。\n`,
   )
   process.stdout.write(
-    `表示や記録のためだけに要る行は、その行か直前の行に理由を添えて断ってください（例: ${markers[0]}: 理由）。\n`,
+    `表示のためだけに要る行は、その行か直前の行に理由を添えて断ってください（例: ${examples}）。\n`,
   )
 }
 

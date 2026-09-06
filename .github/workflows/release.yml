@@ -26,6 +26,7 @@ jobs:
   verify:
     name: 公開してよいか確かめる
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: リポジトリを取得
         uses: actions/checkout@v7
@@ -96,6 +97,7 @@ jobs:
     name: npmへ公開する
     needs: verify
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       # Trusted Publishing に要る。これが無いと OIDC のトークンを作れない
@@ -131,6 +133,7 @@ jobs:
     name: GitHub Packagesへ公開する
     needs: verify
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       packages: write

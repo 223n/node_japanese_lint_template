@@ -47,8 +47,11 @@ npm install --save-dev \
 
 ```javascript
 // .textlintrc.js
-module.exports = require('@223n/lint-config-ja/config/textlint.js')
+module.exports = require('@223n/lint-config-ja')
 ```
+
+これは`@223n/lint-config-ja/config/textlint.js`と同じである。
+どちらの書き方でもよい。
 
 ```jsonc
 // .markdownlint-cli2.jsonc
@@ -91,7 +94,10 @@ node_modules/**
 ### 新しいプロジェクトを作る
 
 GitHubの「Use this template」から作ると、設定と見本が入った状態で始まる。
-不要な`example/`と`test/`は消してよい。
+
+`example/`と`test/`はテンプレートを保守するためのもので、
+新しいプロジェクトには要らない。消す場合は`package.json`の`scripts`から
+`test`と`example`と`check`も一緒に消す。消し忘れると`npm test`が動かなくなる。
 
 ### 語彙検査も使う
 
@@ -140,7 +146,8 @@ module.exports = createTextlintConfig({
 
 よく使うのは次の2つである。
 
-`jtfStyle`を`false`にすると、日本翻訳連盟のスタイルガイド（37の規則）を丸ごと外す。
+`jtfStyle`を`false`にすると、日本翻訳連盟のスタイルガイドを丸ごと外す。
+この`preset`は37の規則を持ち、うち33が既定で有効になる。
 指摘が多すぎて手が付けられないときの逃げ道である。
 
 `halfWidthSpacing`は全角と半角の間のスペースを決める。
@@ -153,12 +160,17 @@ module.exports = createTextlintConfig({
 
 ```javascript
 // .textlintrc.js
-const config = require('@223n/lint-config-ja/config/textlint.js')
+const { createTextlintConfig } = require('@223n/lint-config-ja/config/textlint-base.js')
 
+const config = createTextlintConfig()
 config.rules['preset-ja-technical-writing']['no-exclamation-question-mark'] = false
 
 module.exports = config
 ```
+
+`config/textlint.js`を直に読んで書き換えないこと。
+`require`は同じオブジェクトを返すため、読んだ先すべてに影響する。
+`createTextlintConfig`は呼ぶたびに新しいオブジェクトを返す。
 
 `markdownlint`は、同じ設定の中に書いた規則が`extends`で読んだものより優先される。
 行の順序ではなく、どちらに書いたかで決まる。
@@ -366,7 +378,7 @@ GitHub Actionsでは、`actions/checkout`が使う既定の権限が自分のリ
 | `config/markdownlint.jsonc` | Markdownの検査規則 |
 | `bin/lint-vocabulary.mjs` | 語彙検査の実行ファイル |
 | `example/` | 利用見本。実際に検査が通ることを確かめられる |
-| `test/` | 語彙検査の検証 |
+| `test/` | 語彙検査（`test/run.sh`）と導入手順（`test/install.sh`）の検証 |
 | `docs/` | 規則の理由と、語彙検査の設定方法 |
 
 ## 見本を動かす

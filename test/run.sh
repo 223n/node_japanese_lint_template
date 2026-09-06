@@ -273,5 +273,44 @@ printf 'const x = new Date()\n' > "$WORK/glob/src/ui/deep/deeper/b.ts"
 printf '{"targets":[{"path":"src/ui","extensions":[".ts"],"exclude":["a?.ts","deep/**"],"rules":[{"code":"X","pattern":"new Date","message":"m"}]}]}' > "$WORK/glob/lint-vocabulary.config.json"
 ( cd "$WORK/glob" && node "$CLI" >/dev/null 2>&1 ); check "exclude の ** が区切りを越える" 0 $?
 
+
+# --- 27. 空の値を黙って無視しない
+( cd "$WORK" && node "$CLI" --config "" >/dev/null 2>&1 ); check "空の --config を 2 で弾く" 2 $?
+( cd "$WORK" && node "$CLI" --root "" >/dev/null 2>&1 ); check "空の --root を 2 で弾く" 2 $?
+
+# --- 28. BOM 付きの設定を読める
+printf '\xef\xbb\xbf{"targets":[{"path":"src/ui","extensions":[".ts"],"rules":[{"code":"X","pattern":"never-xyz","message":"m"}]}]}' > "$WORK/bom.config.json"
+( cd "$WORK" && node "$CLI" -c bom.config.json >/dev/null 2>&1 ); check "BOM 付きの設定を読める" 0 $?
+
+# --- 29. 断りの案内は違反が出た対象のものだけを示す
+mkdir -p "$WORK/multi/a" "$WORK/multi/b"
+printf 'const x = new Date()\n' > "$WORK/multi/a/x.ts"
+printf 'export const ok = 1\n' > "$WORK/multi/b/y.ts"
+cat > "$WORK/multi/lint-vocabulary.config.json" <<'JSON'
+{
+  "targets": [
+    { "name": "A", "path": "a", "extensions": [".ts"], "allowMarker": "Aの断り",
+      "rules": [{ "code": "A1", "pattern": "new Date", "message": "Aの規則。" }] },
+    { "name": "B", "path": "b", "extensions": [".ts"], "allowMarker": "Bの断り",
+      "rules": [{ "code": "B1", "pattern": "never-xyz", "message": "Bの規則。" }] }
+  ]
+}
+JSON
+out=$( cd "$WORK/multi" && node "$CLI" 2>/dev/null )
+if printf '%s' "$out" | grep -q 'Aの断り' && ! printf '%s' "$out" | grep -q 'Bの断り'; then
+  printf 'OK   %-46s\n' "案内は違反の出た対象の語だけを示す"; pass=$((pass + 1))
+else
+  printf 'NG   %-46s\n' "案内は違反の出た対象の語だけを示す"; printf '%s\n' "$out"; fail=$((fail + 1))
+fi
+
+# --- 30. 版は package.json と揃っている
+cli_version=$( node "$CLI" --version )
+pkg_version=$( node -p "require('$(cd "$(dirname "$0")/.." && pwd)/package.json').version" )
+if [ "$cli_version" = "$pkg_version" ]; then
+  printf 'OK   %-46s（%s）\n' "版が package.json と揃っている" "$cli_version"; pass=$((pass + 1))
+else
+  printf 'NG   %-46s（CLI %s / package.json %s）\n' "版が package.json と揃っている" "$cli_version" "$pkg_version"; fail=$((fail + 1))
+fi
+
 printf '\n通過 %s / 失敗 %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
