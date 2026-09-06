@@ -116,22 +116,41 @@ check "検証は配布物に入らない" 0 $?
 
 # ---- 3つの検査を動かす
 
-npx textlint . >/dev/null 2>&1
+./node_modules/.bin/textlint . >/dev/null 2>&1
 check "textlintが通る" 0 $?
 
-npx markdownlint-cli2 >/dev/null 2>&1
+./node_modules/.bin/markdownlint-cli2 >/dev/null 2>&1
 check "markdownlintが通る" 0 $?
 
+# 配った設定が効いていることを、切った規則と生きている規則の両方で見る。
+# 肯定側だけだと、規則を全部外しても通ってしまう。
+
+# MD013 は配った設定で切ってある。効いていれば長い行が通る
+{
+  printf '# 見出し\n\n'
+  awk 'BEGIN { printf "word "; for (i = 0; i < 60; i++) printf "word "; print "end." }'
+} > docs/long.md
+./node_modules/.bin/markdownlint-cli2 >/dev/null 2>&1
+check "配った設定が効いている（MD013が切れている）" 0 $?
+rm -f docs/long.md
+
+# MD047 は既定のまま生きている。ファイルの末尾は改行1つで終える。
+# 日本語の文中ではアンダースコアが強調にならないため、MD049 ではなくこちらで見る
+printf '# 見出し\n\n末尾に改行が無い文である。' > docs/nonewline.md
+./node_modules/.bin/markdownlint-cli2 >/dev/null 2>&1
+check "生きている規則は落とす（MD047）" 1 $?
+rm -f docs/nonewline.md
+
 printf 'export const x = 1\n' > src/ui/a.ts
-npx lint-vocabulary >/dev/null 2>&1
+./node_modules/.bin/lint-vocabulary >/dev/null 2>&1
 check "語彙検査が通る" 0 $?
 
 printf 'export const x = new Date()\n' > src/ui/a.ts
-npx lint-vocabulary >/dev/null 2>&1
+./node_modules/.bin/lint-vocabulary >/dev/null 2>&1
 check "語彙検査が違反を捕まえる" 1 $?
 
 printf '// 検査除外: 表示に使うだけである\nexport const x = new Date()\n' > src/ui/a.ts
-npx lint-vocabulary >/dev/null 2>&1
+./node_modules/.bin/lint-vocabulary >/dev/null 2>&1
 check "断りがあれば見逃す" 0 $?
 
 # ---- ですます調に切り替えられる
@@ -140,11 +159,11 @@ cat > .textlintrc.js <<'JS'
 module.exports = require('@223n/lint-config-ja/config/textlint-desumasu.js')
 JS
 printf '# 見出し\n\nこれは利用側の文書です。\n' > docs/a.md
-npx textlint . >/dev/null 2>&1
+./node_modules/.bin/textlint . >/dev/null 2>&1
 check "ですます調に切り替えられる" 0 $?
 
 printf '# 見出し\n\nこれは利用側の文書である。\n' > docs/a.md
-npx textlint . >/dev/null 2>&1
+./node_modules/.bin/textlint . >/dev/null 2>&1
 check "ですます調のとき、である調は指摘される" 1 $?
 
 # ---- 全角と半角の間のスペースを切り替えられる
@@ -154,11 +173,11 @@ const { createTextlintConfig } = require('@223n/lint-config-ja/config/textlint-b
 module.exports = createTextlintConfig({ halfWidthSpacing: 'always' })
 JS
 printf '# 見出し\n\nこれは JavaScript の文である。\n' > docs/a.md
-npx textlint . >/dev/null 2>&1
+./node_modules/.bin/textlint . >/dev/null 2>&1
 check "halfWidthSpacing always でスペースありが通る" 0 $?
 
 printf '# 見出し\n\nこれはJavaScriptの文である。\n' > docs/a.md
-npx textlint . >/dev/null 2>&1
+./node_modules/.bin/textlint . >/dev/null 2>&1
 check "halfWidthSpacing always でスペースなしが落ちる" 1 $?
 
 # ---- jtf-style を丸ごと外せる
@@ -168,7 +187,7 @@ const { createTextlintConfig } = require('@223n/lint-config-ja/config/textlint-b
 module.exports = createTextlintConfig({ jtfStyle: false, halfWidthSpacing: false })
 JS
 printf '# 見出し\n\nこれは JavaScript の文である。\n' > docs/a.md
-npx textlint . >/dev/null 2>&1
+./node_modules/.bin/textlint . >/dev/null 2>&1
 check "jtfStyle false と halfWidthSpacing false で通る" 0 $?
 
 printf '\n通過 %s / 失敗 %s\n' "$pass" "$fail"

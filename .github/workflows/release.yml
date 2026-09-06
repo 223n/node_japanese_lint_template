@@ -58,8 +58,39 @@ jobs:
 
       - name: 配布物の中身を確かめる
         # files に書いたものだけが入っているか。
-        # 見本と検証が混ざっていないかを目で見えるようにする
-        run: npm pack --dry-run
+        # 表示するだけでは見落とすため、入ってはいけないものがあれば止める
+        run: |
+          npm pack --dry-run --json > pack.json
+          node -e '
+            const files = require("./pack.json")[0].files.map((f) => f.path)
+            console.log("配布物:")
+            files.forEach((f) => console.log("  " + f))
+
+            const forbidden = files.filter((f) =>
+              /^(example|test|docs|\.github)\//.test(f) || f === "package-lock.json",
+            )
+            if (forbidden.length > 0) {
+              console.log("::error::配布物に入ってはいけないものがあります: " + forbidden.join(", "))
+              process.exit(1)
+            }
+
+            const required = [
+              "package.json",
+              "README.md",
+              "LICENSE",
+              "bin/lint-vocabulary.mjs",
+              "config/textlint.js",
+              "config/textlint-base.js",
+              "config/textlint-desumasu.js",
+              "config/markdownlint.jsonc",
+            ]
+            const missing = required.filter((f) => !files.includes(f))
+            if (missing.length > 0) {
+              console.log("::error::配布物に足りないものがあります: " + missing.join(", "))
+              process.exit(1)
+            }
+            console.log("配布物の中身: 問題ありません")
+          '
 
   publish-npm:
     name: npmへ公開する

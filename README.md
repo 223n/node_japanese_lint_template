@@ -14,8 +14,9 @@
 | `lint:ja` | `textlint` | 日本語の書き方。文体、一文の長さ、助詞の連続など |
 | `lint:vocab` | `lint-vocabulary` | 禁じた語彙がソースに混入していないか |
 
-`lint:md`と`lint:ja`は警告があっても通る。
-`lint:vocab`は引っかかると失敗する。
+`lint:ja`だけが警告という段階を持ち、警告があっても通る。
+`lint:md`と`lint:vocab`は引っかかると失敗する。
+`markdownlint`に警告の段階は無く、指摘はすべて失敗として扱われる。
 
 ## 導入手順
 
@@ -28,6 +29,11 @@ npm install --save-dev \
   github:223n/node_japanese_lint_template#v1.0.0 \
   textlint markdownlint-cli2
 ```
+
+`#v1.0.0`の部分は、実在するタグを指す必要がある。
+タグの一覧は[リリース](https://github.com/223n/node_japanese_lint_template/releases)にある。
+まだタグが無い間は`#main`と書けば最新を指せるが、いつ変わるか分からないため、
+使い続けるならタグを指すほうがよい。
 
 `textlint`と`markdownlint-cli2`を並べて書くのは、この2つが実行する道具そのものだからである。
 共有設定の側は`peerDependencies`として宣言してあり、利用側が版を選べる。
@@ -151,10 +157,13 @@ module.exports = config
 {
   "config": {
     "extends": "@223n/lint-config-ja/config/markdownlint.jsonc",
-    "MD013": { "line_length": 120 }
+    "MD033": { "allowed_elements": ["br"] }
   }
 }
 ```
+
+なお`MD013`（行の長さ）を戻しても、日本語の地の文にはほとんど効かない。
+この規則は空白の無い行を報告しないため、日本語の長い一文は素通りする。
 
 ## 版を固定する
 

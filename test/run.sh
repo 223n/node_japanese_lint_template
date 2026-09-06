@@ -2,8 +2,10 @@
 # 語彙検査 CLI の検証。元の lint-layer.sh が壊れるケースも含める。
 set -u
 CLI="$(cd "$(dirname "$0")/.." && pwd)/bin/lint-vocabulary.mjs"
-BASE="$(cd "$(dirname "$0")" && pwd)"
-WORK="$BASE/work"
+# 作業場はリポジトリの外に作る。
+# 中に作ると、生成物（大きな .txt など）を textlint が検査対象に拾って止まる
+WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
 pass=0
 fail=0
 
@@ -87,6 +89,7 @@ fi
 rm -f "$WORK/src/ui/a:b.ts"
 
 # --- 7. 拡張子で絞る
+printf 'export const ok = 1\n' > "$WORK/src/ui/keep.ts"
 cat > "$WORK/src/ui/a.js" <<'JS'
 const now = new Date()
 JS
@@ -112,9 +115,15 @@ cat > "$WORK/optional.config.json" <<'JSON'
 JSON
 ( cd "$WORK" && node "$CLI" -c optional.config.json >/dev/null 2>&1 ); check "optional なら対象が無くても通る" 0 $?
 
-# --- 11. バイナリは飛ばす
+# --- 11. バイナリは飛ばす（飛ばしたことは黙らない）
 printf 'new Date(\x00\x01\x02' > "$WORK/src/ui/blob.ts"
 ( cd "$WORK" && node "$CLI" >/dev/null 2>&1 ); check "バイナリは飛ばす" 0 $?
+msg=$( cd "$WORK" && node "$CLI" 2>&1 >/dev/null )
+if printf '%s' "$msg" | grep -q '飛ばした'; then
+  printf 'OK   %-46s\n' "飛ばしたことを黙らずに報告する"; pass=$((pass + 1))
+else
+  printf 'NG   %-46s\n' "飛ばしたことを黙らずに報告する"; fail=$((fail + 1))
+fi
 rm -f "$WORK/src/ui/blob.ts"
 
 # --- 12. シンボリックリンクは辿らない
@@ -161,6 +170,70 @@ const now = new Date()
 TS
 ( cd "$WORK" && node "$CLI" >/dev/null 2>&1 )
 printf 'INFO 文字列内の断りも効く（既知の限界。exit %s）\n' $?
+
+
+# --- 17. 1件も見ていないのに成功と言わない
+mkdir -p "$WORK/empty/src/ui"
+cat > "$WORK/empty/lint-vocabulary.config.json" <<'JSON'
+{ "targets": [ { "path": "src/ui", "extensions": [".ts"], "rules": [ { "code": "X", "pattern": "a", "message": "m" } ] } ] }
+JSON
+( cd "$WORK/empty" && node "$CLI" >/dev/null 2>&1 ); check "1件も見ていなければ 2 で止める" 2 $?
+
+cat > "$WORK/empty/optional.config.json" <<'JSON'
+{ "targets": [ { "path": "src/ui", "optional": true, "extensions": [".ts"], "rules": [ { "code": "X", "pattern": "a", "message": "m" } ] } ] }
+JSON
+( cd "$WORK/empty" && node "$CLI" -c optional.config.json >/dev/null 2>&1 ); check "optional なら空でも通る" 0 $?
+
+# --- 18. 検査した件数を必ず言う
+out=$( cd "$WORK" && node "$CLI" 2>/dev/null )
+if printf '%s' "$out" | grep -qE '件を検査'; then
+  printf 'OK   %-46s\n' "検査した件数を出す"; pass=$((pass + 1))
+else
+  printf 'NG   %-46s\n' "検査した件数を出す"; printf '%s\n' "$out"; fail=$((fail + 1))
+fi
+
+# --- 19. 読めないディレクトリを黙って飛ばさない
+if [ "$(id -u)" -eq 0 ]; then
+  printf 'SKIP %-46s（rootでは権限が効かない）\n' "読めないディレクトリで止まる"
+else
+  mkdir -p "$WORK/src/ui/locked"
+  printf 'export const ok = 1\n' > "$WORK/src/ui/locked/x.ts"
+  chmod 000 "$WORK/src/ui/locked"
+  ( cd "$WORK" && node "$CLI" >/dev/null 2>&1 ); check "読めないディレクトリで止まる" 2 $?
+  chmod 755 "$WORK/src/ui/locked"
+  rm -rf "$WORK/src/ui/locked"
+fi
+
+# --- 20. パイプに出しても切り捨てない
+mkdir -p "$WORK/many/src/ui"
+cp "$WORK/lint-vocabulary.config.json" "$WORK/many/"
+awk 'BEGIN { for (i = 0; i < 20000; i++) print "const x = new Date()" }' > "$WORK/many/src/ui/big.ts"
+piped=$( cd "$WORK/many" && node "$CLI" 2>/dev/null | wc -l )
+( cd "$WORK/many" && node "$CLI" > "$WORK/many/out.txt" 2>/dev/null )
+direct=$( wc -l < "$WORK/many/out.txt" )
+if [ "$piped" = "$direct" ] && [ "$piped" -gt 40000 ]; then
+  printf 'OK   %-46s（%s 行）\n' "パイプに出しても切り捨てない" "$piped"; pass=$((pass + 1))
+else
+  printf 'NG   %-46s（パイプ %s / ファイル %s）\n' "パイプに出しても切り捨てない" "$piped" "$direct"; fail=$((fail + 1))
+fi
+
+# --- 21. パイプに出した JSON が壊れない
+if ( cd "$WORK/many" && node "$CLI" -f json 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{JSON.parse(s)})" ); then
+  printf 'OK   %-46s\n' "パイプに出した JSON が壊れない"; pass=$((pass + 1))
+else
+  printf 'NG   %-46s\n' "パイプに出した JSON が壊れない"; fail=$((fail + 1))
+fi
+
+# --- 22. UTF-8 でないファイルは飛ばし、そのことを言う
+printf 'export const ok = 1\n' > "$WORK/src/ui/keep2.ts"
+printf '// \x93\xfa\x96{\x8c\xea\nconst now = new Date()\n' > "$WORK/src/ui/sjis.ts"
+msg=$( cd "$WORK" && node "$CLI" 2>&1 >/dev/null )
+if printf '%s' "$msg" | grep -q 'UTF-8'; then
+  printf 'OK   %-46s\n' "UTF-8 でないファイルを報告する"; pass=$((pass + 1))
+else
+  printf 'NG   %-46s\n' "UTF-8 でないファイルを報告する"; printf '%s\n' "$msg"; fail=$((fail + 1))
+fi
+rm -f "$WORK/src/ui/sjis.ts"
 
 printf '\n通過 %s / 失敗 %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
