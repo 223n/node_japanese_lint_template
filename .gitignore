@@ -1,0 +1,14 @@
+# 依存
+node_modules/
+
+# 検査の出力
+*.log
+
+# エディタと OS
+.DS_Store
+.vscode/settings.json
+.idea/
+
+# 環境変数
+.env
+test/work/

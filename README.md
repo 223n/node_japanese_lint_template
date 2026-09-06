@@ -1,1 +1,247 @@
 # node_japanese_lint_template
+
+日本語の技術文書を検査するための共有設定と、その利用見本である。
+
+`textlint`と`markdownlint`の規則を1つのパッケージにまとめてあり、
+利用する側は依存を1つ足して設定を2行書くだけで済む。
+禁じた語彙がソースに混入していないかを見る道具（`lint-vocabulary`）も同梱している。
+
+## 何ができるか
+
+| 検査 | 道具 | 見るもの |
+| ---- | ---- | ---- |
+| `lint:md` | `markdownlint-cli2` | Markdownの書式 |
+| `lint:ja` | `textlint` | 日本語の書き方。文体、一文の長さ、助詞の連続など |
+| `lint:vocab` | `lint-vocabulary` | 禁じた語彙がソースに混入していないか |
+
+`lint:md`と`lint:ja`は警告があっても通る。
+`lint:vocab`は引っかかると失敗する。
+
+## 導入手順
+
+### 既存のプロジェクトに足す
+
+依存を入れる。
+
+```bash
+npm install --save-dev \
+  github:223n/node_japanese_lint_template#v1.0.0 \
+  textlint markdownlint-cli2
+```
+
+`textlint`と`markdownlint-cli2`を並べて書くのは、この2つが実行する道具そのものだからである。
+共有設定の側は`peerDependencies`として宣言してあり、利用側が版を選べる。
+
+設定ファイルを2つ置く。
+
+```javascript
+// .textlintrc.js
+module.exports = require('@223n/lint-config-ja/config/textlint.js')
+```
+
+```jsonc
+// .markdownlint-cli2.jsonc
+{
+  "config": {
+    "extends": "@223n/lint-config-ja/config/markdownlint.jsonc"
+  },
+  "globs": ["**/*.md"],
+  "ignores": ["node_modules/**"]
+}
+```
+
+検査の対象から外すものを書く。
+
+```text
+# .textlintignore
+node_modules/**
+```
+
+除外の書き方は`.gitignore`と違う。
+`node_modules/`のように末尾をスラッシュで終えても効かない。
+ディレクトリごと外すときは`node_modules/**`と書く。
+
+`package.json`に呼び出しを足す。
+
+```jsonc
+{
+  "scripts": {
+    "lint": "npm run lint:md && npm run lint:ja",
+    "lint:md": "markdownlint-cli2",
+    "lint:md:fix": "markdownlint-cli2 --fix",
+    "lint:ja": "textlint .",
+    "lint:ja:fix": "textlint --fix ."
+  }
+}
+```
+
+これで`npm run lint`が動く。
+
+### 新しいプロジェクトを作る
+
+GitHubの「Use this template」から作ると、設定と見本が入った状態で始まる。
+不要な`example/`と`test/`は消してよい。
+
+### 語彙検査も使う
+
+`lint-vocabulary.config.json`を置き、`package.json`に呼び出しを足す。
+
+```jsonc
+{
+  "scripts": {
+    "lint:vocab": "lint-vocabulary"
+  }
+}
+```
+
+設定の書き方は[語彙検査](docs/語彙検査.md)にある。
+
+## 設定を変える
+
+### 文体をですます調にする
+
+```javascript
+// .textlintrc.js
+module.exports = require('@223n/lint-config-ja/config/textlint-desumasu.js')
+```
+
+### 一部だけ変える
+
+設定を作る関数を直に呼ぶ。
+
+```javascript
+// .textlintrc.js
+const { createTextlintConfig } = require('@223n/lint-config-ja/config/textlint-base.js')
+
+module.exports = createTextlintConfig({
+  style: 'ですます',            // 'である'（既定）か 'ですます'
+  sentenceLength: 100,          // 一文の最大文字数。既定は 120
+  maxKanjiContinuousLen: 5,     // 漢字を連ねてよい上限。既定は 6。false で規則ごと切る
+  strictSentenceEnd: true,      // 文末の句点を厳しく見る。既定は false
+  jtfStyle: false,              // 日本翻訳連盟のスタイルガイドを当てる。既定は true
+  halfWidthSpacing: 'always',   // 全角と半角の間のスペース。既定は 'never'
+})
+```
+
+よく使うのは次の2つである。
+
+`jtfStyle`を`false`にすると、日本翻訳連盟のスタイルガイド（37の規則）を丸ごと外す。
+指摘が多すぎて手が付けられないときの逃げ道である。
+
+`halfWidthSpacing`は全角と半角の間のスペースを決める。
+既定の`'never'`は「入れない」を求める。
+`'always'`にすると「入れる」を求め、`false`にすると見ない。
+
+### 規則を個別に上書きする
+
+作った設定に手を入れる。
+
+```javascript
+// .textlintrc.js
+const config = require('@223n/lint-config-ja/config/textlint.js')
+
+config.rules['preset-ja-technical-writing']['no-exclamation-question-mark'] = false
+
+module.exports = config
+```
+
+`markdownlint`は`extends`のあとに書いたものが勝つ。
+
+```jsonc
+{
+  "config": {
+    "extends": "@223n/lint-config-ja/config/markdownlint.jsonc",
+    "MD013": { "line_length": 120 }
+  }
+}
+```
+
+## 版を固定する
+
+タグで指す。
+
+```jsonc
+{
+  "devDependencies": {
+    "@223n/lint-config-ja": "github:223n/node_japanese_lint_template#v1.0.0"
+  }
+}
+```
+
+`package-lock.json`にはタグではなくコミットの識別子が記録されるため、
+`npm ci`は常に同じものを入れる。
+規則を上げるときはタグを書き換える。
+
+## 非公開のリポジトリとして使う場合
+
+このリポジトリを公開しないまま使うこともできるが、認証の設定が要る。
+
+手元では、GitHubへのSSH鍵か認証情報の補助が入っていれば動く。
+短縮形ではなく完全な形で書くほうが確実である。
+
+```jsonc
+{
+  "devDependencies": {
+    "@223n/lint-config-ja": "git+ssh://git@github.com/223n/node_japanese_lint_template.git#v1.0.0"
+  }
+}
+```
+
+GitHub Actionsでは、`actions/checkout`が使う既定の権限が自分のリポジトリしか読めない。
+別のリポジトリを引くには、次のどちらかを足す。
+
+```yaml
+# 細かい権限を絞ったトークンを秘密として置く場合
+- run: git config --global url."https://x-access-token:${{ secrets.LINT_TOKEN }}@github.com/".insteadOf "https://github.com/"
+- run: npm ci
+```
+
+```yaml
+# デプロイ鍵を置く場合
+- uses: webfactory/ssh-agent@v0.9.1
+  with:
+    ssh-key: ${{ secrets.LINT_DEPLOY_KEY }}
+- run: npm ci
+```
+
+## 何が入っているか
+
+| 位置 | 中身 |
+| ---- | ---- |
+| `config/textlint.js` | である調の設定。既定 |
+| `config/textlint-desumasu.js` | ですます調の設定 |
+| `config/textlint-base.js` | 設定を作る関数。細かく変えるときに使う |
+| `config/markdownlint.jsonc` | Markdownの検査規則 |
+| `bin/lint-vocabulary.mjs` | 語彙検査の実行ファイル |
+| `example/` | 利用見本。実際に検査が通ることを確かめられる |
+| `test/` | 語彙検査の検証 |
+| `docs/` | 規則の理由と、語彙検査の設定方法 |
+
+## 見本を動かす
+
+```bash
+npm install
+npm run example
+```
+
+`example/`は`file:..`でこのリポジトリを参照している。
+規則を変えたときに、利用側から見てどうなるかをその場で確かめられる。
+
+## 開発
+
+```bash
+npm install
+npm run lint      # このリポジトリ自身の文書を、このリポジトリが配る規則で検査する
+npm test          # 語彙検査の検証
+npm run example   # 利用見本の検証
+npm run check     # 上の3つをまとめて
+```
+
+## 文書
+
+- [規則の理由](docs/規則の理由.md) — どの規則をなぜ切ったか
+- [語彙検査](docs/語彙検査.md) — `lint-vocabulary`の設定と使い方
+
+## ライセンス
+
+Apache License 2.0。[LICENSE](LICENSE)を見よ。

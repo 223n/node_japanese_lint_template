@@ -1,0 +1,8 @@
+// markdownlint-cli2 が検査する対象。規則そのものは共有設定にある。
+{
+  "config": {
+    "extends": "@223n/lint-config-ja/config/markdownlint.jsonc"
+  },
+  "globs": ["**/*.md"],
+  "ignores": ["node_modules/**"]
+}

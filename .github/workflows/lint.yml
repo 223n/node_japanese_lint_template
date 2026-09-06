@@ -1,0 +1,64 @@
+name: 検査
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# 同じブランチに続けて push したとき、古い実行を止める
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: 文書と語彙の検査
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # markdownlint-cli2 0.23 が Node 22 以上を求めるため、22 から見る
+        node: ['22', '24']
+    steps:
+      - name: リポジトリを取得
+        uses: actions/checkout@v4
+
+      - name: Nodeを用意
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: 依存を入れる
+        run: npm ci
+
+      - name: 自身の文書を検査する
+        # 配る規則で自分の文書を検査する。規則を変えたときに、
+        # 書き手から見てどうなるかがここで分かる
+        run: npm run lint
+
+      - name: 語彙検査を検証する
+        run: npm test
+
+      - name: 利用見本を検証する
+        run: npm run example
+
+  install:
+    name: 導入手順の検証
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリを取得
+        uses: actions/checkout@v4
+
+      - name: Nodeを用意
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: git参照で入れて動かす
+        # README に書いた導入手順が実際に通ることを確かめる。
+        # 公開前のリポジトリでも試せるよう、自分自身の複製を参照先にする
+        run: bash test/install.sh

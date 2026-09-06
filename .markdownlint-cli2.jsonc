@@ -1,0 +1,11 @@
+// markdownlint-cli2 が検査する対象。規則そのものは config/markdownlint.jsonc にある。
+{
+  "config": {
+    "extends": "./config/markdownlint.jsonc"
+  },
+  "globs": ["**/*.md"],
+  "ignores": [
+    "node_modules/**",
+    "example/node_modules/**"
+  ]
+}
