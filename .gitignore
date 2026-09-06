@@ -1,0 +1,17 @@
+# 依存
+node_modules/
+
+# 検査の出力
+*.log
+
+# エディタと OS
+.DS_Store
+.vscode/settings.json
+.idea/
+
+# 環境変数と認証情報。
+# npm login が作る .npmrc にはトークンが入る。公開リポジトリでは特に入れない
+.env
+.env.*
+.npmrc
+pack.json

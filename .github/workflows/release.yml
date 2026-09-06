@@ -1,0 +1,158 @@
+name: 公開
+
+# タグを切ると npm と GitHub Packages の両方へ公開する。
+#
+# 3つのジョブに分けてある。
+#   verify           公開してよい状態かを確かめる
+#   publish-npm      npm レジストリへ公開する
+#   publish-github   GitHub Packages へ公開する
+#
+# 確認を別のジョブにしてあるのは、どちらか一方が落ちたときに
+# 「確認は通っていた」ことが記録に残るようにするためである。
+#
+# 権限はジョブごとに与える。npm 側は OIDC のトークンを作る権限だけ、
+# GitHub Packages 側は書き込みの権限だけを持つ。
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+# 既定は読み取りだけにする。要る権限は各ジョブで足す
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: 公開してよいか確かめる
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: リポジトリを取得
+        uses: actions/checkout@v7
+
+      - name: Nodeを用意
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: 依存を入れる
+        run: npm ci
+
+      - name: タグと版が一致することを確かめる
+        # 版を上げ忘れたまま公開すると取り消せない。
+        # publish は実質やり直しがきかないため、その前に止める。
+        # workflow_dispatch で手から動かしたときはタグが無いので飛ばす
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(node -p "require('./package.json').version")"
+          echo "タグ: $tag / package.json: $pkg"
+          if [ "$tag" != "$pkg" ]; then
+            echo "::error::タグ($tag)と package.json の版($pkg)が食い違っています"
+            exit 1
+          fi
+
+      - name: 検査を通す
+        # 壊れたものを公開しない。取り消せないためである
+        run: npm run check
+
+      - name: 配布物の中身を確かめる
+        # files に書いたものだけが入っているか。
+        # 表示するだけでは見落とすため、入ってはいけないものがあれば止める
+        run: |
+          npm pack --dry-run --json > pack.json
+          node -e '
+            const files = require("./pack.json")[0].files.map((f) => f.path)
+            console.log("配布物:")
+            files.forEach((f) => console.log("  " + f))
+
+            const forbidden = files.filter((f) =>
+              /^(example|test|docs|\.github)\//.test(f) || f === "package-lock.json",
+            )
+            if (forbidden.length > 0) {
+              console.log("::error::配布物に入ってはいけないものがあります: " + forbidden.join(", "))
+              process.exit(1)
+            }
+
+            const required = [
+              "package.json",
+              "README.md",
+              "LICENSE",
+              "bin/lint-vocabulary.mjs",
+              "config/textlint.js",
+              "config/textlint-base.js",
+              "config/textlint-desumasu.js",
+              "config/markdownlint.jsonc",
+            ]
+            const missing = required.filter((f) => !files.includes(f))
+            if (missing.length > 0) {
+              console.log("::error::配布物に足りないものがあります: " + missing.join(", "))
+              process.exit(1)
+            }
+            console.log("配布物の中身: 問題ありません")
+          '
+
+  publish-npm:
+    name: npmへ公開する
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      # Trusted Publishing に要る。これが無いと OIDC のトークンを作れない
+      id-token: write
+    steps:
+      - name: リポジトリを取得
+        uses: actions/checkout@v7
+
+      - name: Nodeを用意
+        # registry-url は指定しない。指定すると setup-node が
+        # 空の認証トークンを書いた .npmrc を作り、OIDC の判定を邪魔しうる。
+        # 既定の宛先が registry.npmjs.org なので、指定しなくても届く
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: npmを上げる
+        # Trusted Publishing は npm 11.5.1 以上で使える。
+        # ランナーに入っている版が足りないことがあるため、明示的に上げる
+        run: |
+          npm install -g npm@latest
+          npm --version
+
+      - name: 依存を入れる
+        run: npm ci
+
+      - name: 公開する
+        # トークンは要らない。npm が OIDC を見つけて使う。
+        # スコープ付きは --access public を付けないと非公開の扱いになる
+        run: npm publish --access public
+
+  publish-github:
+    name: GitHub Packagesへ公開する
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: リポジトリを取得
+        uses: actions/checkout@v7
+
+      - name: Nodeを用意
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@223n'
+
+      - name: 依存を入れる
+        run: npm ci
+
+      - name: 公開する
+        # 見え方はリポジトリの公開範囲に従うため --access は指定しない
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

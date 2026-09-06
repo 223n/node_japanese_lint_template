@@ -1,0 +1,19 @@
+{
+  "name": "lint-config-ja-example",
+  "version": "1.0.0",
+  "private": true,
+  "description": "@223n/lint-config-ja の利用見本。実際に検査が通ることを確かめるためのもの。",
+  "scripts": {
+    "lint": "npm run lint:md && npm run lint:ja && npm run lint:vocab",
+    "lint:md": "markdownlint-cli2",
+    "lint:md:fix": "markdownlint-cli2 --fix",
+    "lint:ja": "textlint .",
+    "lint:ja:fix": "textlint --fix .",
+    "lint:vocab": "lint-vocabulary"
+  },
+  "devDependencies": {
+    "@223n/lint-config-ja": "file:..",
+    "markdownlint-cli2": "^0.23.2",
+    "textlint": "^15.8.0"
+  }
+}

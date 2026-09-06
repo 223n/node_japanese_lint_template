@@ -1,0 +1,23 @@
+{
+  "allowMarker": "検査除外",
+  "targets": [
+    {
+      "name": "画面層",
+      "path": "src/ui",
+      "extensions": [".ts", ".tsx"],
+      "exclude": ["**/*.test.ts"],
+      "rules": [
+        {
+          "code": "LINT001",
+          "pattern": "new Date\\(|\\.getTime\\(|\\.setDate\\(",
+          "message": "日付の生成と計算は中核層に置く。画面は中核層が返した値を表示する。"
+        },
+        {
+          "code": "LINT002",
+          "pattern": "\\.reduce\\(",
+          "message": "集計は中核層に置く。表示のための絞り込みと並べ替えは画面層に置いてよい。"
+        }
+      ]
+    }
+  ]
+}

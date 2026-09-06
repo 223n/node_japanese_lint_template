@@ -1,0 +1,70 @@
+{
+  "name": "@223n/lint-config-ja",
+  "version": "1.0.0",
+  "description": "日本語の技術文書を検査するための共有設定（textlint / markdownlint）と、禁じた語彙の混入を見る道具。",
+  "keywords": [
+    "textlint",
+    "textlint-config",
+    "markdownlint",
+    "markdownlint-config",
+    "japanese",
+    "lint",
+    "documentation"
+  ],
+  "license": "Apache-2.0",
+  "author": "223n",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/223n/node_japanese_lint_template.git"
+  },
+  "homepage": "https://github.com/223n/node_japanese_lint_template#readme",
+  "bugs": {
+    "url": "https://github.com/223n/node_japanese_lint_template/issues"
+  },
+  "type": "commonjs",
+  "main": "config/textlint.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "config",
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "bin": {
+    "lint-vocabulary": "bin/lint-vocabulary.mjs"
+  },
+  "scripts": {
+    "lint": "npm run lint:md && npm run lint:ja",
+    "lint:md": "markdownlint-cli2",
+    "lint:md:fix": "markdownlint-cli2 --fix",
+    "lint:ja": "textlint .",
+    "lint:ja:fix": "textlint --fix .",
+    "test": "bash test/run.sh",
+    "example": "npm --prefix example install --no-audit --no-fund && npm --prefix example run lint",
+    "check": "npm run lint && npm test && npm run example"
+  },
+  "dependencies": {
+    "textlint-filter-rule-comments": "^1.3.0",
+    "textlint-rule-preset-ja-spacing": "^2.4.3",
+    "textlint-rule-preset-ja-technical-writing": "^12.0.2",
+    "textlint-rule-preset-jtf-style": "^3.0.3"
+  },
+  "peerDependencies": {
+    "markdownlint-cli2": ">=0.19.0",
+    "textlint": ">=14.0.0"
+  },
+  "peerDependenciesMeta": {
+    "markdownlint-cli2": {
+      "optional": true
+    },
+    "textlint": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "markdownlint-cli2": "^0.23.2",
+    "textlint": "^15.8.0"
+  }
+}

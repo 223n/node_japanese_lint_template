@@ -1,0 +1,14 @@
+// markdownlint-cli2 が検査する対象。規則そのものは config/markdownlint.jsonc にある。
+{
+  "config": {
+    "extends": "./config/markdownlint.jsonc"
+  },
+  "globs": ["**/*.md"],
+  "ignores": [
+    "node_modules/**",
+    // 見本は独立したパッケージであり、自分の設定で自分を検査する（npm run example）。
+    // ここから降りると example/.markdownlint-cli2.jsonc を拾い、
+    // そこに書かれたパッケージ名を example/ からの相対パスとして解決しようとして落ちる。
+    "example/**"
+  ]
+}
