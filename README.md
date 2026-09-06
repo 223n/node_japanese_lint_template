@@ -172,7 +172,7 @@ module.exports = config
 `npm ci`は常に同じものを入れる。
 規則を上げるときはタグを書き換える。
 
-## npmへ公開する
+## パッケージとして公開する
 
 git参照のままでも使えるが、npmに登録すると導入が短くなり、版の範囲指定が使える。
 
@@ -228,6 +228,40 @@ npmjs.comで「Packages」から対象のパッケージを開き、「Settings�
 
 2回目からはタグを切るだけでよい。
 手元での`npm login`も、トークンの保存も要らない。
+
+### GitHub Packagesにも公開する
+
+`release.yml`はnpmと同時にGitHub Packagesへも公開する。
+こちらは`GITHUB_TOKEN`で認証するため、設定は要らない。
+
+ただし**GitHub Packagesは公開されたパッケージでも取得に認証を求める**。
+GitHubの文書は「private、internal、publicのいずれのパッケージも、公開・取得・削除にアクセストークンが必要」と述べている。
+
+そのため利用側には`.npmrc`と個人アクセストークンが要る。
+
+```text
+# .npmrc
+@223n:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
+```
+
+トークンには`read:packages`の権限が要る。
+GitHub Actionsから使う場合は、その実行の`GITHUB_TOKEN`をそのまま渡せる。
+
+### どれを使うか
+
+3つの経路があり、利用側の手間が違う。
+
+| 経路 | 利用側に要るもの | 版の指定 |
+| ---- | ---- | ---- |
+| npm | 依存を1行書くだけ | `^1.0.0`の範囲指定が使える |
+| git参照 | 依存を1行書くだけ | タグで一点を指す |
+| GitHub Packages | `.npmrc`とアクセストークン | `^1.0.0`の範囲指定が使える |
+
+**特に理由が無ければnpmを使うのがよい。**
+認証が要らず、範囲指定も使えるためである。
+
+GitHub Packagesは、npmを使わない方針の組織や、GitHubの中で完結させたい場合に選ぶ。
 
 ### 公開の手順
 
