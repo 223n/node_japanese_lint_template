@@ -124,7 +124,24 @@ jobs:
       - name: 依存を入れる
         run: npm ci
 
+      - name: 公開済みかを確かめる
+        id: published
+        # npm は同じ版を上書きできず、403 で落ちる。
+        # 手元から先に公開した版にタグを切る場合や、
+        # 片方の公開だけが落ちて入れ直す場合に、ここで止まらないようにする
+        run: |
+          name="$(node -p "require('./package.json').name")"
+          version="$(node -p "require('./package.json').version")"
+          if npm view "$name@$version" version >/dev/null 2>&1; then
+            echo "already=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::$name@$version は npm に既にある。この段は飛ばす"
+          else
+            echo "already=false" >> "$GITHUB_OUTPUT"
+            echo "$name@$version は未公開である"
+          fi
+
       - name: 公開する
+        if: steps.published.outputs.already != 'true'
         # トークンは要らない。npm が OIDC を見つけて使う。
         # スコープ付きは --access public を付けないと非公開の扱いになる
         run: npm publish --access public
@@ -151,7 +168,24 @@ jobs:
       - name: 依存を入れる
         run: npm ci
 
+      - name: 公開済みかを確かめる
+        id: published
+        # npm 側と同じ理由。GitHub Packages も同じ版を上書きできない
+        run: |
+          name="$(node -p "require('./package.json').name")"
+          version="$(node -p "require('./package.json').version")"
+          if npm view "$name@$version" version >/dev/null 2>&1; then
+            echo "already=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::$name@$version は GitHub Packages に既にある。この段は飛ばす"
+          else
+            echo "already=false" >> "$GITHUB_OUTPUT"
+            echo "$name@$version は未公開である"
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: 公開する
+        if: steps.published.outputs.already != 'true'
         # 見え方はリポジトリの公開範囲に従うため --access は指定しない
         run: npm publish
         env:

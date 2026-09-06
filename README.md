@@ -33,21 +33,23 @@ Node 22以上が要る。
 依存を入れる。
 
 ```bash
+npm install --save-dev @223n/lint-config-ja textlint markdownlint-cli2
+```
+
+`textlint`と`markdownlint-cli2`を並べて書くのは、この2つが実行する道具そのものだからである。
+共有設定の側は`peerDependencies`として宣言してあり、利用側が版を選べる。
+
+npmを使わず、GitHubを直接指して入れることもできる。
+
+```bash
 npm install --save-dev \
   github:223n/node_japanese_lint_template#v1.0.0 \
   textlint markdownlint-cli2
 ```
 
-`@223n/lint-config-ja`はまだnpmレジストリに公開していない。
-公開するまでは、上のようにGitHubを直接指して入れる（公開の手順は「パッケージとして公開する」にある）。
-
 `#v1.0.0`の部分は、実在するタグを指す必要がある。
 タグの一覧は[リリース](https://github.com/223n/node_japanese_lint_template/releases)にある。
-まだタグが無い間は`#main`と書けば最新を指せるが、いつ変わるか分からないため、
-使い続けるならタグを指すほうがよい。
-
-`textlint`と`markdownlint-cli2`を並べて書くのは、この2つが実行する道具そのものだからである。
-共有設定の側は`peerDependencies`として宣言してあり、利用側が版を選べる。
+どちらの経路で入れても、パッケージ名は`@223n/lint-config-ja`である。
 
 設定ファイルを2つ置く。
 
@@ -265,6 +267,18 @@ npmjs.comで「Packages」から対象のパッケージを開き、「Settings�
 
 2回目からはタグを切るだけでよい。
 手元での`npm login`も、トークンの保存も要らない。
+
+#### 公開済みの版は飛ばす
+
+同じ版の上書きは、npmでもGitHub Packagesでもできない。
+そのため公開の前に、その版が既にあるかを確かめ、あれば飛ばす。
+
+これで次の2つの場面が扱える。
+
+- 手元から先に公開した版へ、あとからタグを切る場合
+- 片方の公開だけが落ちて、入れ直す場合
+
+版を上げ忘れたままタグを切る誤りは、その手前の「タグと版が一致するか」で止まる。
 
 ### GitHub Packagesにも公開する
 
