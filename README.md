@@ -25,6 +25,9 @@
 Node 22以上が要る。
 `markdownlint-cli2` 0.23がNode 22以上を求めるためである。
 
+`markdownlint`を使わず`textlint`と語彙検査だけを使うなら、実際にはNode 20.18でも動く。
+ただしその組み合わせは検査していないため、`engines`は22以上と書いてある。
+
 ### 既存のプロジェクトに足す
 
 依存を入れる。
@@ -34,6 +37,9 @@ npm install --save-dev \
   github:223n/node_japanese_lint_template#v1.0.0 \
   textlint markdownlint-cli2
 ```
+
+`@223n/lint-config-ja`はまだnpmレジストリに公開していない。
+公開するまでは、上のようにGitHubを直接指して入れる（公開の手順は「パッケージとして公開する」にある）。
 
 `#v1.0.0`の部分は、実在するタグを指す必要がある。
 タグの一覧は[リリース](https://github.com/223n/node_japanese_lint_template/releases)にある。

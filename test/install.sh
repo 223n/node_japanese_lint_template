@@ -200,6 +200,40 @@ printf '# 見出し\n\nこれは利用側の文書である。\n' > docs/a.md
 ./node_modules/.bin/textlint . >/dev/null 2>&1
 check "ですます調のとき、である調は指摘される" 1 $?
 
+# ---- 文体の指摘が1つの向きだけを指す
+
+# 文体が混ざった文書で、jtf-style の 1.1.1.本文 と no-mix-dearu-desumasu が
+# 正反対を指さないことを見る。
+# jtf 側は寄せ先を設定できず、文書内の多数派に寄せろと指摘するため、
+# 切っていないと ですます調 への移し替えの最中にずっと矛盾する。
+cat > .textlintrc.js <<'JS'
+module.exports = require('@223n/lint-config-ja/config/textlint-desumasu.js')
+JS
+cat > docs/a.md <<'MD'
+# 見出し
+
+これはテストです。
+
+これは例外である。
+
+これも例外である。
+
+さらに例外である。
+MD
+out=$( ./node_modules/.bin/textlint . 2>&1 )
+if printf '%s' "$out" | grep -q '1\.1\.1'; then
+  printf 'NG   %-46s\n' "文体の指摘が1つの向きだけを指す"; printf '%s\n' "$out" | head -6; fail=$((fail + 1))
+else
+  printf 'OK   %-46s\n' "文体の指摘が1つの向きだけを指す"; pass=$((pass + 1))
+fi
+
+# no-mix-dearu-desumasu は生きている。切ってあるわけではない
+if printf '%s' "$out" | grep -q 'no-mix-dearu-desumasu'; then
+  printf 'OK   %-46s\n' "文体の混在は no-mix が拾う"; pass=$((pass + 1))
+else
+  printf 'NG   %-46s\n' "文体の混在は no-mix が拾う"; fail=$((fail + 1))
+fi
+
 # ---- 全角と半角の間のスペースを切り替えられる
 
 cat > .textlintrc.js <<'JS'
