@@ -189,18 +189,15 @@ git参照はタグで一点を指すだけなので、修正版が出ても自�
 
 ### 一度だけの設定
 
-公開は`.github/workflows/release.yml`が行う。
-認証にTrusted Publishing（OIDC）を使うため、トークンを秘密として置く必要はない。
+公開は`.github/workflows/release.yml`が行い、認証にTrusted Publishing（OIDC）を使う。
+そのためトークンを秘密として置く必要はない。
 
-npmjs.comで次を設定する。
+ただし**Trusted Publisherの設定は、パッケージがnpmに存在して初めて現れる**。
+そのため順序は次のようになる。
 
-1. `223n`のアカウントまたはorganizationを作る
-1. パッケージの設定から「Trusted Publisher」を開く
-1. 提供元にGitHub Actionsを選ぶ
-1. 所有者に`223n`、リポジトリに`node_japanese_lint_template`を入れる
-1. ワークフローのファイル名に`release.yml`と入れる。経路ではなくファイル名だけを書く
+#### 1. 手元から一度だけ公開する
 
-最初の公開だけは、パッケージがまだ存在しないため手元から行う必要がある。
+`223n`のアカウントを作ったうえで、次を実行する。
 
 ```bash
 npm login
@@ -208,6 +205,29 @@ npm publish --access public
 ```
 
 スコープ付きのパッケージは`--access public`を付けないと非公開の扱いになり、有料のプランを求められる。
+
+`npm login`を済ませずに実行すると認証で失敗する。
+また、`package.json`の`name`のスコープ（`@223n`）と、npmのアカウント名またはorganization名が一致している必要がある。
+
+#### 2. Trusted Publisherを設定する
+
+公開するとパッケージの設定画面が現れる。
+npmjs.comで「Packages」から対象のパッケージを開き、「Settings」の「Trusted publishing」で次を入れる。
+
+| 項目 | 入れる値 |
+| ---- | ---- |
+| 提供元 | GitHub Actions |
+| 所有者 | `223n` |
+| リポジトリ | `node_japanese_lint_template` |
+| ワークフローのファイル名 | `release.yml` |
+| 環境 | 空でよい |
+
+ファイル名は経路を含めず、`release.yml`とだけ書く。
+
+#### 3. 以降は自動になる
+
+2回目からはタグを切るだけでよい。
+手元での`npm login`も、トークンの保存も要らない。
 
 ### 公開の手順
 
