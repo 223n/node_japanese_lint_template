@@ -172,6 +172,61 @@ module.exports = config
 `npm ci`は常に同じものを入れる。
 規則を上げるときはタグを書き換える。
 
+## npmへ公開する
+
+git参照のままでも使えるが、npmに登録すると導入が短くなり、版の範囲指定が使える。
+
+```jsonc
+{
+  "devDependencies": {
+    "@223n/lint-config-ja": "^1.0.0"
+  }
+}
+```
+
+git参照はタグで一点を指すだけなので、修正版が出ても自動では入らない。
+`^1.0.0`と書ければ、後方互換のある修正は`npm update`で入る。
+
+### 一度だけの設定
+
+公開は`.github/workflows/release.yml`が行う。
+認証にTrusted Publishing（OIDC）を使うため、トークンを秘密として置く必要はない。
+
+npmjs.comで次を設定する。
+
+1. `223n`のアカウントまたはorganizationを作る
+1. パッケージの設定から「Trusted Publisher」を開く
+1. 提供元にGitHub Actionsを選ぶ
+1. 所有者に`223n`、リポジトリに`node_japanese_lint_template`を入れる
+1. ワークフローのファイル名に`release.yml`と入れる。経路ではなくファイル名だけを書く
+
+最初の公開だけは、パッケージがまだ存在しないため手元から行う必要がある。
+
+```bash
+npm login
+npm publish --access public
+```
+
+スコープ付きのパッケージは`--access public`を付けないと非公開の扱いになり、有料のプランを求められる。
+
+### 公開の手順
+
+版を上げ、タグを切って押す。
+
+```bash
+npm version patch   # または minor / major
+git push --follow-tags
+```
+
+`release.yml`が動き、次の順に確かめてから公開する。
+
+1. タグと`package.json`の版が一致するか
+1. 検査が通るか
+1. 配布物に余計なものが入っていないか
+
+版を上げ忘れたままタグを切ると、公開の前に止まる。
+公開は実質取り消せない（`npm unpublish`は72時間以内に限られる）ため、手前で止める。
+
 ## 非公開のリポジトリとして使う場合
 
 このリポジトリを公開しないまま使うこともできるが、認証の設定が要る。
