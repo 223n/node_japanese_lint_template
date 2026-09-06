@@ -1,0 +1,1 @@
+# node_japanese_lint_template
