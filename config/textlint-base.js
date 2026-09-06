@@ -37,7 +37,21 @@ function createTextlintConfig(options = {}) {
   }
 
   const sentenceLength = options.sentenceLength ?? 120
+  // 数でないものを渡すと、規則が黙って効かなくなる。その場で気付けるようにする
+  if (!Number.isInteger(sentenceLength) || sentenceLength < 1) {
+    throw new Error(`sentenceLength は1以上の整数である: ${sentenceLength}`)
+  }
+
   const maxKanjiContinuousLen = options.maxKanjiContinuousLen ?? 6
+  if (
+    maxKanjiContinuousLen !== false &&
+    (!Number.isInteger(maxKanjiContinuousLen) || maxKanjiContinuousLen < 1)
+  ) {
+    throw new Error(
+      `maxKanjiContinuousLen は1以上の整数か false である: ${maxKanjiContinuousLen}`,
+    )
+  }
+
   const strictSentenceEnd = options.strictSentenceEnd ?? false
   const jtfStyle = options.jtfStyle ?? true
   const halfWidthSpacing = options.halfWidthSpacing ?? 'never'

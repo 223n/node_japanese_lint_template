@@ -93,8 +93,14 @@ JSON
 
 printf '# 見出し\n\nこれは利用側の文書である。\n' > docs/a.md
 
-npm install --no-audit --no-fund --silent >/dev/null 2>&1
-check "git参照で入る" 0 $?
+npm install --no-audit --no-fund > "$work/install.log" 2>&1
+code=$?
+check "git参照で入る" 0 $code
+if [ "$code" -ne 0 ]; then
+  echo "--- npm install の出力 ---"
+  cat "$work/install.log"
+  echo "--------------------------"
+fi
 
 # ---- 入ったものを確かめる
 
@@ -152,6 +158,32 @@ check "語彙検査が違反を捕まえる" 1 $?
 printf '// 検査除外: 表示に使うだけである\nexport const x = new Date()\n' > src/ui/a.ts
 ./node_modules/.bin/lint-vocabulary >/dev/null 2>&1
 check "断りがあれば見逃す" 0 $?
+
+# ---- 配った既定値が効いていることを、境目の両側で見る
+
+cat > .textlintrc.js <<'JS'
+module.exports = require('@223n/lint-config-ja/config/textlint.js')
+JS
+
+# sentence-length は 120 にしてある。
+# 116 文字の文は通る。preset の既定（100）のままなら落ちる。
+# 同じ字を並べると別の規則（同語反復）に当たるため、自然な文で見る
+cat > docs/a.md <<'MD'
+# 見出し
+
+この共有設定は日本語の技術文書を検査するためのものであり、文体の統一や一文の長さ、助詞の連続といった書き方の癖を機械的に見つけ、読み手に負担をかける表現を減らし、書き手が迷わずに書き進められるようにすることを目的として作られている。
+MD
+./node_modules/.bin/textlint . >/dev/null 2>&1
+check "sentence-length が 120 に緩めてある（116文字は通る）" 0 $?
+
+# 125 文字なら落ちる。切ってあるわけではないことを見る
+cat > docs/a.md <<'MD'
+# 見出し
+
+この共有設定は日本語の技術文書を検査するためのものであり、文体の統一や一文の長さ、助詞の連続といった書き方の癖を機械的に見つけ、読み手に負担をかける表現を減らし、書き手が迷わずに書き進められるようにすることを目的として作られたものであると説明できる。
+MD
+./node_modules/.bin/textlint . >/dev/null 2>&1
+check "sentence-length は切ってはいない（125文字は落ちる）" 1 $?
 
 # ---- ですます調に切り替えられる
 

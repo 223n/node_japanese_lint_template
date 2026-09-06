@@ -1,5 +1,8 @@
 #!/bin/bash
-# 語彙検査 CLI の検証。元の lint-layer.sh が壊れるケースも含める。
+# 語彙検査 CLI の検証。
+#
+# 素朴なシェル実装が取りこぼす場面（パスにコロンが含まれる、パイプに出す、
+# 対象が空になる）も含めて見る。
 set -u
 CLI="$(cd "$(dirname "$0")/.." && pwd)/bin/lint-vocabulary.mjs"
 # 作業場はリポジトリの外に作る。
@@ -234,6 +237,41 @@ else
   printf 'NG   %-46s\n' "UTF-8 でないファイルを報告する"; printf '%s\n' "$msg"; fail=$((fail + 1))
 fi
 rm -f "$WORK/src/ui/sjis.ts"
+
+
+# --- 23. 設定の型が違ってもスタックトレースを出さない
+for bad in \
+  '{"targets":[{"path":"src/ui","exclude":"配列でない","rules":[{"code":"X","pattern":"a","message":"m"}]}]}' \
+  '{"targets":[{"path":"src/ui","optional":"yes","rules":[{"code":"X","pattern":"a","message":"m"}]}]}'
+do
+  printf '%s' "$bad" > "$WORK/bad.config.json"
+  out=$( cd "$WORK" && node "$CLI" -c bad.config.json 2>&1 ); code=$?
+  traces=$( printf '%s' "$out" | grep -c '    at ' || true )
+  if [ "$code" = "2" ] && [ "$traces" = "0" ]; then
+    printf 'OK   %-46s\n' "型の誤りを 2 で伝える（trace なし）"; pass=$((pass + 1))
+  else
+    printf 'NG   %-46s（exit %s / trace %s 行）\n' "型の誤りを 2 で伝える" "$code" "$traces"; fail=$((fail + 1))
+  fi
+done
+
+# --- 24. 拡張子の大小を区別しない
+mkdir -p "$WORK/case/src/ui"
+printf '{"targets":[{"path":"src/ui","extensions":[".ts"],"rules":[{"code":"X","pattern":"new Date","message":"m"}]}]}' > "$WORK/case/lint-vocabulary.config.json"
+printf 'const x = new Date()\n' > "$WORK/case/src/ui/A.TS"
+( cd "$WORK/case" && node "$CLI" >/dev/null 2>&1 ); check "拡張子の大小を区別しない" 1 $?
+
+# --- 25. exclude の ? が1文字に当たる
+mkdir -p "$WORK/glob/src/ui"
+printf 'export const ok = 1\n' > "$WORK/glob/src/ui/keep.ts"
+printf 'const x = new Date()\n' > "$WORK/glob/src/ui/a1.ts"
+printf '{"targets":[{"path":"src/ui","extensions":[".ts"],"exclude":["a?.ts"],"rules":[{"code":"X","pattern":"new Date","message":"m"}]}]}' > "$WORK/glob/lint-vocabulary.config.json"
+( cd "$WORK/glob" && node "$CLI" >/dev/null 2>&1 ); check "exclude の ? が1文字に当たる" 0 $?
+
+# --- 26. exclude の ** が区切りを越える
+mkdir -p "$WORK/glob/src/ui/deep/deeper"
+printf 'const x = new Date()\n' > "$WORK/glob/src/ui/deep/deeper/b.ts"
+printf '{"targets":[{"path":"src/ui","extensions":[".ts"],"exclude":["a?.ts","deep/**"],"rules":[{"code":"X","pattern":"new Date","message":"m"}]}]}' > "$WORK/glob/lint-vocabulary.config.json"
+( cd "$WORK/glob" && node "$CLI" >/dev/null 2>&1 ); check "exclude の ** が区切りを越える" 0 $?
 
 printf '\n通過 %s / 失敗 %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

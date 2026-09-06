@@ -1,3 +1,4 @@
 node_modules/**
-example/node_modules/**
-test/work/**
+# 見本は独立したパッケージであり、自分の設定で自分を検査する（npm run example）。
+# ここから見ると、見本の文体を変えたときに根の検査が落ちる
+example/**

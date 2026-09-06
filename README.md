@@ -20,6 +20,11 @@
 
 ## 導入手順
 
+### 必要なもの
+
+Node 22以上が要る。
+`markdownlint-cli2` 0.23がNode 22以上を求めるためである。
+
 ### 既存のプロジェクトに足す
 
 依存を入れる。
@@ -95,12 +100,16 @@ GitHubの「Use this template」から作ると、設定と見本が入った状
 ```jsonc
 {
   "scripts": {
+    "lint": "npm run lint:md && npm run lint:ja && npm run lint:vocab",
     "lint:vocab": "lint-vocabulary"
   }
 }
 ```
 
-設定の書き方は[語彙検査](docs/語彙検査.md)にある。
+`lint`の側にも繋ぐこと。
+`lint:vocab`を足すだけでは`npm run lint`から呼ばれない。
+
+設定の書き方は[語彙検査](https://github.com/223n/node_japanese_lint_template/blob/main/docs/%E8%AA%9E%E5%BD%99%E6%A4%9C%E6%9F%BB.md)にある。
 
 ## 設定を変える
 
@@ -151,7 +160,8 @@ config.rules['preset-ja-technical-writing']['no-exclamation-question-mark'] = fa
 module.exports = config
 ```
 
-`markdownlint`は`extends`のあとに書いたものが勝つ。
+`markdownlint`は、同じ設定の中に書いた規則が`extends`で読んだものより優先される。
+行の順序ではなく、どちらに書いたかで決まる。
 
 ```jsonc
 {
@@ -314,13 +324,37 @@ GitHub Actionsでは、`actions/checkout`が使う既定の権限が自分のリ
 - run: npm ci
 ```
 
+デプロイ鍵を使う場合は、鍵を置いてから引く。
+
 ```yaml
-# デプロイ鍵を置く場合
-- uses: webfactory/ssh-agent@v0.9.1
-  with:
-    ssh-key: ${{ secrets.LINT_DEPLOY_KEY }}
+- run: |
+    mkdir -p ~/.ssh
+    printf '%s\n' "${{ secrets.LINT_DEPLOY_KEY }}" > ~/.ssh/id_ed25519
+    chmod 600 ~/.ssh/id_ed25519
+    ssh-keyscan github.com >> ~/.ssh/known_hosts
 - run: npm ci
 ```
+
+第三者のアクションを使えば短く書けるが、公開の鍵を扱うため、ここでは自前で書いている。
+
+## 知っておくとよいこと
+
+### 依存の巻き上げを前提にしている
+
+`textlint`は規則を名前で探す。
+この共有設定が`dependencies`に持つ規則は、`npm`が利用側の`node_modules`へ巻き上げることで見つかる。
+
+`pnpm`や`yarn`のPnPのように巻き上げないやり方では、規則が見つからずに失敗することがある。
+その場合は、規則の`package`を利用側の`devDependencies`にも直接足す。
+
+### 版を上げると規則が増えることがある
+
+`config/markdownlint.jsonc`は`default: true`で、名前を挙げていない規則は既定のまま有効になる。
+`markdownlint`の版が上がって規則が増えると、それも自動で有効になる。
+
+これは意図した動きである。
+ただし版を上げた直後に、新しい指摘が出ることはある。
+版は`package-lock.json`で固定されるため、`npm ci`を使うかぎり勝手には変わらない。
 
 ## 何が入っているか
 
@@ -357,8 +391,8 @@ npm run check     # 上の3つをまとめて
 
 ## 文書
 
-- [規則の理由](docs/規則の理由.md) — どの規則をなぜ切ったか
-- [語彙検査](docs/語彙検査.md) — `lint-vocabulary`の設定と使い方
+- [規則の理由](https://github.com/223n/node_japanese_lint_template/blob/main/docs/%E8%A6%8F%E5%89%87%E3%81%AE%E7%90%86%E7%94%B1.md) — どの規則をなぜ切ったか
+- [語彙検査](https://github.com/223n/node_japanese_lint_template/blob/main/docs/%E8%AA%9E%E5%BD%99%E6%A4%9C%E6%9F%BB.md) — `lint-vocabulary`の設定と使い方
 
 ## ライセンス
 

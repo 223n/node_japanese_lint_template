@@ -210,18 +210,45 @@ function buildAllowRegexp(marker) {
   return new RegExp(`${escaped}[ \\t]*[:\uFF1A][ \\t]*\\S`)
 }
 
-/** 除外の指定を照合の関数に変える。* と ** を扱う */
+/**
+ * 除外の指定を照合の関数に変える。
+ *
+ * 扱う記号は3つ。
+ *   *   区切りを越えない任意の並び
+ *   **  区切りを越える任意の並び
+ *   ?   区切りでない1文字
+ *
+ * 1文字ずつ読む。まとめて置換すると、置換後の文字列をさらに置換してしまう。
+ */
 function toExcludeMatcher(pattern) {
   if (typeof pattern !== 'string' || pattern === '') {
     fail(`exclude の要素は空でない文字列である: ${pattern}`)
   }
-  const source = pattern
-    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-    .replace(/\*\*\//g, '\u0000')
-    .replace(/\*\*/g, '\u0001')
-    .replace(/\*/g, '[^/]*')
-    .replace(/\u0000/g, '(?:[^/]+/)*')
-    .replace(/\u0001/g, '.*')
+  let source = ''
+  for (let i = 0; i < pattern.length; i += 1) {
+    const ch = pattern[i]
+    if (ch === '*') {
+      if (pattern[i + 1] === '*') {
+        i += 1
+        if (pattern[i + 1] === '/') {
+          // 「**/」は0段以上のディレクトリ
+          i += 1
+          source += '(?:[^/]+/)*'
+        } else {
+          source += '.*'
+        }
+      } else {
+        source += '[^/]*'
+      }
+      continue
+    }
+    if (ch === '?') {
+      source += '[^/]'
+      continue
+    }
+    // 正規表現の記号はそのままの文字として扱う
+    source += ch.replace(/[.+^${}()|[\]\\]/, '\\$&')
+  }
   const regexp = new RegExp(`^${source}$`)
   return (relativePath) => regexp.test(relativePath)
 }
@@ -264,8 +291,17 @@ function normalizeConfig(config, configPath, rootOverride) {
         fail(`${where}.extensions の要素はドットで始める: ${ext}`)
       }
     }
+    // 大小は区別しない。.TS を見落とすと、その分だけ検査が漏れる
+    const normalizedExtensions = extensions.map((e) => e.toLowerCase())
     if (!Array.isArray(target.rules) || target.rules.length === 0) {
       fail(`${where}.rules に規則を1つ以上書く`)
+    }
+
+    if (target.exclude !== undefined && !Array.isArray(target.exclude)) {
+      fail(`${where}.exclude は配列である`)
+    }
+    if (target.optional !== undefined && typeof target.optional !== 'boolean') {
+      fail(`${where}.optional は true か false である: ${target.optional}`)
     }
 
     const marker = target.allowMarker ?? globalMarker
@@ -308,7 +344,7 @@ function normalizeConfig(config, configPath, rootOverride) {
       name: typeof target.name === 'string' && target.name ? target.name : target.path,
       dir: path.resolve(base, target.path),
       display: target.path,
-      extensions,
+      extensions: normalizedExtensions,
       exclude: (target.exclude ?? []).map(toExcludeMatcher),
       optional: target.optional === true,
       marker,
@@ -351,7 +387,7 @@ function collectFiles(target, report) {
       }
       if (!entry.isFile()) continue
       if (target.extensions.length > 0) {
-        const ext = path.extname(entry.name)
+        const ext = path.extname(entry.name).toLowerCase()
         if (!target.extensions.includes(ext)) continue
       }
       if (target.exclude.some((match) => match(relative))) continue
