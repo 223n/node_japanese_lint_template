@@ -1,6 +1,6 @@
 {
   "name": "@223n/lint-config-ja",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "日本語の技術文書を検査するための共有設定（textlint / markdownlint）と、禁じた語彙の混入を見る道具。",
   "keywords": [
     "textlint",
