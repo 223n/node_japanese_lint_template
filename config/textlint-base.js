@@ -28,6 +28,7 @@
  * @param {'never'|'always'|false} [options.halfWidthSpacing]
  *   全角と半角の間のスペース。既定は 'never'（入れない）。
  *   'always' にすると入れることを求め、false にすると規則そのものを切る。
+ *   コードスパン・リンク・スラッシュの前後は、この設定に関係なく入れないことを求める。
  * @returns {object} textlint の設定
  */
 function createTextlintConfig(options = {}) {
