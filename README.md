@@ -162,6 +162,11 @@ module.exports = createTextlintConfig({
 既定の`'never'`は「入れない」を求める。
 `'always'`にすると「入れる」を求め、`false`にすると見ない。
 
+コードスパン、リンク、スラッシュの前後は、この設定とは別に「入れない」を求める。
+`'always'`にしても変わらない。
+スペースを入れる書き方に合わせる場合は、下の手順で`ja-space-around-code`、
+`ja-space-around-link`、`ja-no-space-around-slash`を切る。
+
 ### 規則を個別に上書きする
 
 作った設定に手を入れる。
