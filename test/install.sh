@@ -258,5 +258,45 @@ printf '# 見出し\n\nこれは JavaScript の文である。\n' > docs/a.md
 ./node_modules/.bin/textlint . >/dev/null 2>&1
 check "jtfStyle false と halfWidthSpacing false で通る" 0 $?
 
+# ---- preset-ja-spacing は v3 の既定のまま効く
+
+# コードスパン・リンク・スラッシュの前後にスペースを入れると指摘される。
+# 共有設定の側で切っていないことを、指摘される側と通る側の両方で見る
+cat > .textlintrc.js <<'JS'
+module.exports = require('@223n/lint-config-ja/config/textlint.js')
+JS
+printf '# 見出し\n\n規則は `markdownlint-cli2` が読む。\n' > docs/a.md
+./node_modules/.bin/textlint . >/dev/null 2>&1
+check "コードスパンの前後のスペースは指摘される" 1 $?
+
+printf '# 見出し\n\n規則は`markdownlint-cli2`が読む。\n' > docs/a.md
+./node_modules/.bin/textlint . >/dev/null 2>&1
+check "コードスパンの前後にスペースが無ければ通る" 0 $?
+
+printf '# 見出し\n\n詳しくは [README](README.md) を見る。\n' > docs/a.md
+./node_modules/.bin/textlint . >/dev/null 2>&1
+check "リンクの前後のスペースは指摘される" 1 $?
+
+# 強調と斜体の前後は、v3.0.3 の既定で見ない。
+# v3.0.0 では既定で有効だった。既定がまた変わったら、ここで分かるようにする
+printf '# 見出し\n\nこれは **強調** の文である。\n\nこれは *斜体* の文である。\n' > docs/a.md
+./node_modules/.bin/textlint . >/dev/null 2>&1
+check "強調と斜体の前後のスペースは見ない" 0 $?
+
+printf '# 見出し\n\n型はstruct / enumから選ぶ。\n' > docs/a.md
+./node_modules/.bin/textlint . >/dev/null 2>&1
+check "スラッシュの前後のスペースは指摘される" 1 $?
+
+# 使わない利用側は、README「規則を個別に上書きする」の手順で切れる
+cat > .textlintrc.js <<'JS'
+const { createTextlintConfig } = require('@223n/lint-config-ja/config/textlint-base.js')
+const config = createTextlintConfig()
+config.rules['preset-ja-spacing']['ja-no-space-around-slash'] = false
+module.exports = config
+JS
+printf '# 見出し\n\n型はstruct / enumから選ぶ。\n' > docs/a.md
+./node_modules/.bin/textlint . >/dev/null 2>&1
+check "スラッシュの規則は上書きで切れる" 0 $?
+
 printf '\n通過 %s / 失敗 %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

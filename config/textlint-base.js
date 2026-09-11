@@ -28,6 +28,7 @@
  * @param {'never'|'always'|false} [options.halfWidthSpacing]
  *   全角と半角の間のスペース。既定は 'never'（入れない）。
  *   'always' にすると入れることを求め、false にすると規則そのものを切る。
+ *   コードスパン・リンク・スラッシュの前後は、この設定に関係なく入れないことを求める。
  * @returns {object} textlint の設定
  */
 function createTextlintConfig(options = {}) {
@@ -150,22 +151,12 @@ function createTextlintConfig(options = {}) {
     // 上と同じ理由。こちらの規則も箇条書きの字下げを誤って拾う。
     'ja-no-space-around-parentheses': false,
 
-    // コードスパン・リンク・強調の前後のスペース。
-    // 下の ja-space-between-half-and-full-width の但し書き
-    // 「半角の語をコードスパンに入れれば前後のスペースは通る」は、
-    // これらが無効であることを前提にしている。有効にすると、その書き方が
-    // すべて指摘対象になる（この配布物自身の docs でも19件出る）。
-    //
-    // preset-ja-spacing v3.0.0 で code と link の既定が有効に変わったため、
-    // v2 と同じ挙動を保つよう明示的に切る。
-    // strong は v3.0.0 で追加され v3.0.3 で既定が無効に戻された経緯があり、
-    // 既定に揺れがあるため同様に固定する。
-    'ja-space-around-code': false,
-    'ja-space-around-link': false,
-    'ja-space-around-strong': false,
+    // ここに挙げていない規則は preset-ja-spacing v3 の既定のまま効く。
+    // コードスパン・リンク・スラッシュの前後にはスペースを入れない。
+    // 強調と斜体の前後は見ない。
 
     // 全角と半角の間のスペース。
-    // 既定は「入れない」である。半角の語をコードスパンに入れれば前後のスペースは通る。
+    // 既定は「入れない」である。
     'ja-space-between-half-and-full-width':
       halfWidthSpacing === false ? false : { space: halfWidthSpacing },
   }
