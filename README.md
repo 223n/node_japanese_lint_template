@@ -6,12 +6,15 @@
 利用する側は依存を1つ足して設定を2行書くだけで済む。
 禁じた語彙がソースに混入していないかを見る道具（`lint-vocabulary`）も同梱している。
 
+VS Code拡張「テキスト校正くん」（`ics.japanese-proofreading`）が使う校正辞書も同梱しており、
+表記ゆれと誤用を既定で拾う。
+
 ## 何ができるか
 
 | 検査 | 道具 | 見るもの |
 | ---- | ---- | ---- |
 | `lint:md` | `markdownlint-cli2` | Markdownの書式 |
-| `lint:ja` | `textlint` | 日本語の書き方。文体、一文の長さ、助詞の連続など |
+| `lint:ja` | `textlint` | 日本語の書き方。文体、一文の長さ、助詞の連続、表記ゆれなど |
 | `lint:vocab` | `lint-vocabulary` | 禁じた語彙がソースに混入していないか |
 
 `lint:ja`だけが警告という段階を持ち、警告があっても通る。
@@ -149,6 +152,9 @@ module.exports = createTextlintConfig({
   strictSentenceEnd: true,      // 文末の句点を厳しく見る。既定は false
   jtfStyle: false,              // 日本翻訳連盟のスタイルガイドを当てる。既定は true
   halfWidthSpacing: 'always',   // 全角と半角の間のスペース。既定は 'never'
+  proofreading: false,          // 校正辞書を当てる。既定は true
+  proofreadingSeverity: 'error', // 校正辞書の指摘の強さ。既定は 'warning'
+  proofreadingDictionaries: ['誤字'], // 当てる辞書。既定は7種すべて
 })
 ```
 
@@ -166,6 +172,51 @@ module.exports = createTextlintConfig({
 `'always'`にしても変わらない。
 スペースを入れる書き方に合わせる場合は、下の手順で`ja-space-around-code`、
 `ja-space-around-link`、`ja-no-space-around-slash`を切る。
+
+### 校正辞書を絞る
+
+VS Code拡張「テキスト校正くん」が使う校正辞書を同梱しており、既定で有効である。
+語の対応表で表記ゆれと誤用を拾う。
+
+<!-- textlint-disable prh -->
+
+| 辞書 | 拾うもの |
+| ---- | ---- |
+| 誤字 | アボガド → アボカド |
+| 重言 | 馬から落馬 → 落馬 |
+| ひらく漢字 | 出来る → できる |
+| 冗長な表現 | することができます → できます |
+| 外来語カタカナ表記 | プリンタ → プリンター |
+| 固有名詞 | 東京ビックサイト → 東京ビッグサイト |
+| 技術用語 | Github → GitHub |
+
+<!-- textlint-enable prh -->
+
+指摘は警告として出るため、検査そのものは止まらない。
+「ひらく漢字」と「外来語カタカナ表記」は書き手の好みに属する指摘を含み、
+これで検査を止めると既存の文書が一斉に落ちるためである。
+
+辞書を選ぶときは名前を並べる。
+
+```javascript
+module.exports = createTextlintConfig({ proofreadingDictionaries: ['誤字', '技術用語'] })
+```
+
+丸ごと切るときは`proofreading: false`と書く。
+`proofreadingDictionaries: []`は書き損じと見なして止める。
+
+語を足したいときは、同梱した辞書を書き換えず、自分の辞書を足す。
+書き換えると取得元との差分が分からなくなるためである。
+
+```javascript
+const path = require('node:path')
+const { createTextlintConfig } = require('@223n/lint-config-ja/config/textlint-base.js')
+
+const config = createTextlintConfig()
+config.rules.prh.rulePaths.push(path.resolve(__dirname, 'dict/my-prh.yml'))
+
+module.exports = config
+```
 
 ### 規則を個別に上書きする
 
@@ -431,6 +482,7 @@ GitHub Actionsでは、`actions/checkout`が使う既定の権限が自分のリ
 | `config/textlint-desumasu.js` | ですます調の設定 |
 | `config/textlint-base.js` | 設定を作る関数。細かく変えるときに使う |
 | `config/markdownlint.jsonc` | Markdownの検査規則 |
+| `dict/` | 校正辞書。出典と許諾は`dict/README.md`にある |
 | `bin/lint-vocabulary.mjs` | 語彙検査の実行ファイル |
 | `example/` | 利用見本。実際に検査が通ることを確かめられる |
 | `test/` | 語彙検査（`test/run.sh`）と導入手順（`test/install.sh`）の検証 |
@@ -461,7 +513,12 @@ npm run check     # 上の3つをまとめて
 - [規則の理由](https://github.com/223n/node_japanese_lint_template/blob/main/docs/%E8%A6%8F%E5%89%87%E3%81%AE%E7%90%86%E7%94%B1.md) — どの規則をなぜ切ったか
 - [語彙検査](https://github.com/223n/node_japanese_lint_template/blob/main/docs/%E8%AA%9E%E5%BD%99%E6%A4%9C%E6%9F%BB.md) — `lint-vocabulary`の設定と使い方
 - [依存の警告](https://github.com/223n/node_japanese_lint_template/blob/main/docs/%E4%BE%9D%E5%AD%98%E3%81%AE%E8%AD%A6%E5%91%8A.md) — 供給経路の道具が出す警告を確かめた結果
+- [校正辞書](https://github.com/223n/node_japanese_lint_template/blob/main/dict/README.md) — 同梱した辞書の出典と更新のしかた
 
 ## ライセンス
 
 Apache License 2.0。[LICENSE](LICENSE)を見よ。
+
+同梱した校正辞書（`dict/prh_*.yml`）だけはMIT Licenseである。
+取得元はICSが公開している辞書である。
+全文は[dict/LICENSE](dict/LICENSE)に、出典は[dict/README.md](dict/README.md)にある。
