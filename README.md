@@ -514,6 +514,7 @@ npm run check     # 上の3つをまとめて
 - [語彙検査](https://github.com/223n/node_japanese_lint_template/blob/main/docs/%E8%AA%9E%E5%BD%99%E6%A4%9C%E6%9F%BB.md) — `lint-vocabulary`の設定と使い方
 - [依存の警告](https://github.com/223n/node_japanese_lint_template/blob/main/docs/%E4%BE%9D%E5%AD%98%E3%81%AE%E8%AD%A6%E5%91%8A.md) — 供給経路の道具が出す警告を確かめた結果
 - [校正辞書](https://github.com/223n/node_japanese_lint_template/blob/main/dict/README.md) — 同梱した辞書の出典と更新のしかた
+- [セキュリティに関する方針](https://github.com/223n/node_japanese_lint_template/blob/main/SECURITY.md) — 弱点を見つけたときの知らせ方と、扱う範囲
 
 ## ライセンス
 
