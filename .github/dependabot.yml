@@ -1,0 +1,66 @@
+# 依存の更新を Dependabot に見てもらう。
+#
+# 宛先のブランチは書いていない。既定で「デフォルトブランチ」に出るためであり、
+# このリポジトリではそれが develop である。ここに target-branch を書き写すと、
+# デフォルトブランチを変えたときに片方だけ古くなる。
+#
+# なお、脆弱性に対する更新（security updates）はこの設定に従わず、
+# 常にデフォルトブランチへ出る。その意味でも宛先は1か所に寄せてある。
+version: 2
+
+updates:
+  # 本体の依存。配る規則そのものであり、ここが壊れると利用側に直に響く
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '09:00'
+      timezone: Asia/Tokyo
+    open-pull-requests-limit: 5
+    commit-message:
+      # コミットメッセージの規約に合わせる。本文は Dependabot が英語で書く
+      prefix: '[Mod]'
+    groups:
+      # preset は互いに同じ規則を見ることがあり、版がずれると指摘が食い違う。
+      # 1つずつ入れ替えると、その食い違いの中で検査を通すはめになる
+      textlint-preset:
+        patterns:
+          - 'textlint-rule-preset-*'
+          - 'textlint-filter-rule-*'
+      # textlint 本体と、規則が依存する部品
+      textlint-core:
+        patterns:
+          - 'textlint'
+          - 'textlint-rule-*'
+        exclude-patterns:
+          - 'textlint-rule-preset-*'
+    # markdownlint-cli2 など、上に当たらないものは個別に出る
+
+  # 利用見本。配布物には入らないが、検査が通ることの裏取りに使っている
+  - package-ecosystem: npm
+    directory: /example
+    schedule:
+      interval: monthly
+      timezone: Asia/Tokyo
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: '[Mod]'
+    groups:
+      example:
+        patterns:
+          - '*'
+
+  # ワークフローが使う action
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+      timezone: Asia/Tokyo
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: '[Mod]'
+    groups:
+      actions:
+        patterns:
+          - '*'

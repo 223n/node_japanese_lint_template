@@ -2,7 +2,10 @@ name: 検査
 
 on:
   push:
-    branches: [main]
+    # develop は開発の統合先、main はリリース済みの版である。
+    # どちらも PR を通ってから入るが、取り込んだ後の姿でもう一度見る。
+    # 取り込みの向きによっては、PR のときと違う組み合わせになりうるためである
+    branches: [main, develop]
   pull_request:
 
 # 同じブランチに続けて push したとき、古い実行を止める

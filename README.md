@@ -46,11 +46,11 @@ npmを使わず、GitHubを直接指して入れることもできる。
 
 ```bash
 npm install --save-dev \
-  github:223n/node_japanese_lint_template#v2.1.0 \
+  github:223n/node_japanese_lint_template#v2.1.1 \
   textlint markdownlint-cli2
 ```
 
-`#v2.1.0`の部分は、実在するタグを指す必要がある。
+`#v2.1.1`の部分は、実在するタグを指す必要がある。
 タグの一覧は[リリース](https://github.com/223n/node_japanese_lint_template/releases)にある。
 どちらの経路で入れても、パッケージ名は`@223n/lint-config-ja`である。
 
@@ -258,7 +258,7 @@ module.exports = config
 ```jsonc
 {
   "devDependencies": {
-    "@223n/lint-config-ja": "github:223n/node_japanese_lint_template#v2.1.0"
+    "@223n/lint-config-ja": "github:223n/node_japanese_lint_template#v2.1.1"
   }
 }
 ```
@@ -274,13 +274,13 @@ git参照のままでも使えるが、npmに登録すると導入が短くな�
 ```jsonc
 {
   "devDependencies": {
-    "@223n/lint-config-ja": "^2.1.0"
+    "@223n/lint-config-ja": "^2.1.1"
   }
 }
 ```
 
 git参照はタグで一点を指すだけなので、修正版が出ても自動では入らない。
-`^2.1.0`と書ければ、後方互換のある修正は`npm update`で入る。
+`^2.1.1`と書ければ、後方互換のある修正は`npm update`で入る。
 
 ### 一度だけの設定
 
@@ -361,9 +361,9 @@ GitHub Actionsから使う場合は、その実行の`GITHUB_TOKEN`をそのま�
 
 | 経路 | 利用側に要るもの | 版の指定 |
 | ---- | ---- | ---- |
-| npm | 依存を1行書くだけ | `^2.1.0`の範囲指定が使える |
+| npm | 依存を1行書くだけ | `^2.1.1`の範囲指定が使える |
 | git参照 | 依存を1行書くだけ | タグで一点を指す |
-| GitHub Packages | `.npmrc`とアクセストークン | `^2.1.0`の範囲指定が使える |
+| GitHub Packages | `.npmrc`とアクセストークン | `^2.1.1`の範囲指定が使える |
 
 **特に理由が無ければnpmを使うのがよい。**
 認証が要らず、範囲指定も使えるためである。
@@ -398,7 +398,7 @@ git push --follow-tags
 ```jsonc
 {
   "devDependencies": {
-    "@223n/lint-config-ja": "git+ssh://git@github.com/223n/node_japanese_lint_template.git#v2.1.0"
+    "@223n/lint-config-ja": "git+ssh://git@github.com/223n/node_japanese_lint_template.git#v2.1.1"
   }
 }
 ```
@@ -514,6 +514,7 @@ npm run check     # 上の3つをまとめて
 - [語彙検査](https://github.com/223n/node_japanese_lint_template/blob/main/docs/%E8%AA%9E%E5%BD%99%E6%A4%9C%E6%9F%BB.md) — `lint-vocabulary`の設定と使い方
 - [依存の警告](https://github.com/223n/node_japanese_lint_template/blob/main/docs/%E4%BE%9D%E5%AD%98%E3%81%AE%E8%AD%A6%E5%91%8A.md) — 供給経路の道具が出す警告を確かめた結果
 - [校正辞書](https://github.com/223n/node_japanese_lint_template/blob/main/dict/README.md) — 同梱した辞書の出典と更新のしかた
+- [セキュリティに関する方針](https://github.com/223n/node_japanese_lint_template/blob/main/SECURITY.md) — 弱点を見つけたときの知らせ方と、扱う範囲
 
 ## ライセンス
 

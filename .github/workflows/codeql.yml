@@ -1,0 +1,65 @@
+name: コード走査
+
+# CodeQL でコードの穴を見る。
+#
+# GitHub の画面から入れる「既定の設定」ではなく、この設定ファイルで動かしている。
+# 走らせる条件と対象をリポジトリの側に残し、ほかの検査と同じく理由を書けるようにするためである。
+# その代わり CodeQL 自体の版上げは自分で追う。Dependabot の github-actions の項が拾う。
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+  schedule:
+    # 手を入れていない間も、新しい検出規則で見つかることがある。
+    # 週に一度だけ回す。月曜 10:00 JST。Dependabot の 9:00 とはずらしてある
+    - cron: '0 1 * * 1'
+
+# 同じブランチに続けて push したとき、古い実行を止める
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: ${{ matrix.language }} を走査する
+    runs-on: ubuntu-latest
+    # CodeQL は検査より時間がかかる。固まったまま枠を占め続けないようにする
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      # 走査の結果を Security タブへ書く
+      security-events: write
+      # 実行の情報を読む
+      actions: read
+    strategy:
+      # 片方が落ちても、もう片方の結果は見たい
+      fail-fast: false
+      matrix:
+        language:
+          # 配る設定と、語彙検査の本体。
+          # 語彙検査は利用側が書いた正規表現をそのまま動かし、木を辿ってファイルを読む。
+          # 正規表現の暴走やパスの扱いは、ここで見ておきたいところである
+          - javascript-typescript
+          # ワークフローそのもの。権限の緩さや、式に値を差し込む書き方を見る
+          - actions
+
+    steps:
+      - name: リポジトリを取得
+        uses: actions/checkout@v7
+
+      - name: CodeQLを用意する
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          # 規則は既定のままにしてある。
+          # 取りこぼしが気になる場合は security-extended にできるが、
+          # 確度の低い指摘も増えるため、まずは既定から始める
+
+      - name: 走査する
+        uses: github/codeql-action/analyze@v4
+        with:
+          # 言語ごとに結果を分けて置く。分けないと、あとから入れた言語が前の結果を上書きする
+          category: /language:${{ matrix.language }}
