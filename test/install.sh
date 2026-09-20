@@ -298,5 +298,81 @@ printf '# 見出し\n\n型はstruct / enumから選ぶ。\n' > docs/a.md
 ./node_modules/.bin/textlint . >/dev/null 2>&1
 check "スラッシュの規則は上書きで切れる" 0 $?
 
+# ---- テキスト校正くんの校正辞書
+
+[ -f node_modules/@223n/lint-config-ja/dict/prh_idiom.yml ]
+check "校正辞書が配布物に入る" 0 $?
+
+cat > .textlintrc.js <<'JS'
+module.exports = require('@223n/lint-config-ja/config/textlint.js')
+JS
+
+# 既定で効く。ただし警告なので検査そのものは止めない
+printf '# 見出し\n\nアボガドを買った。\n' > docs/a.md
+out=$( ./node_modules/.bin/textlint . 2>&1 ); code=$?
+if printf '%s' "$out" | grep -q 'アボカド'; then
+  printf 'OK   %-46s\n' "校正辞書が誤字を拾う"; pass=$((pass + 1))
+else
+  printf 'NG   %-46s\n' "校正辞書が誤字を拾う"; printf '%s\n' "$out" | head -5; fail=$((fail + 1))
+fi
+check "辞書の指摘は警告で、検査を止めない" 0 $code
+
+# 康煕部首。見た目が同じで別の文字である漢字を拾う
+printf '# 見出し\n\n⽤いた道具である。\n' > docs/a.md
+out=$( ./node_modules/.bin/textlint . 2>&1 )
+if printf '%s' "$out" | grep -qi 'kangxi'; then
+  printf 'OK   %-46s\n' "康煕部首を拾う"; pass=$((pass + 1))
+else
+  printf 'NG   %-46s\n' "康煕部首を拾う"; printf '%s\n' "$out" | head -5; fail=$((fail + 1))
+fi
+
+# 丸ごと切れる
+cat > .textlintrc.js <<'JS'
+const { createTextlintConfig } = require('@223n/lint-config-ja/config/textlint-base.js')
+module.exports = createTextlintConfig({ proofreading: false })
+JS
+printf '# 見出し\n\nアボガドを買った。\n' > docs/a.md
+out=$( ./node_modules/.bin/textlint . 2>&1 )
+if printf '%s' "$out" | grep -q 'アボカド'; then
+  printf 'NG   %-46s\n' "proofreading false で辞書を切れる"; fail=$((fail + 1))
+else
+  printf 'OK   %-46s\n' "proofreading false で辞書を切れる"; pass=$((pass + 1))
+fi
+
+# 強さを上げると検査を止める
+cat > .textlintrc.js <<'JS'
+const { createTextlintConfig } = require('@223n/lint-config-ja/config/textlint-base.js')
+module.exports = createTextlintConfig({ proofreadingSeverity: 'error' })
+JS
+printf '# 見出し\n\nアボガドを買った。\n' > docs/a.md
+./node_modules/.bin/textlint . >/dev/null 2>&1
+check "proofreadingSeverity error なら落ちる" 1 $?
+
+# 辞書を絞れる。絞った側が効き、外した側が効かないことを両方で見る
+cat > .textlintrc.js <<'JS'
+const { createTextlintConfig } = require('@223n/lint-config-ja/config/textlint-base.js')
+module.exports = createTextlintConfig({ proofreadingDictionaries: ['誤字'] })
+JS
+printf '# 見出し\n\nアボガドを買った。それは出来る。\n' > docs/a.md
+out=$( ./node_modules/.bin/textlint . 2>&1 )
+if printf '%s' "$out" | grep -q 'アボカド' && ! printf '%s' "$out" | grep -q 'ひらく漢字'; then
+  printf 'OK   %-46s\n' "辞書を選べる"; pass=$((pass + 1))
+else
+  printf 'NG   %-46s\n' "辞書を選べる"; printf '%s\n' "$out" | head -5; fail=$((fail + 1))
+fi
+
+# 名前を書き損じたら、黙って効かなくなるのではなく止まる
+cat > .textlintrc.js <<'JS'
+const { createTextlintConfig } = require('@223n/lint-config-ja/config/textlint-base.js')
+module.exports = createTextlintConfig({ proofreadingDictionaries: ['誤時'] })
+JS
+printf '# 見出し\n\nこれは利用側の文書である。\n' > docs/a.md
+./node_modules/.bin/textlint . >/dev/null 2>&1
+if [ $? -ne 0 ]; then
+  printf 'OK   %-46s\n' "知らない辞書名で止まる"; pass=$((pass + 1))
+else
+  printf 'NG   %-46s\n' "知らない辞書名で止まる"; fail=$((fail + 1))
+fi
+
 printf '\n通過 %s / 失敗 %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
