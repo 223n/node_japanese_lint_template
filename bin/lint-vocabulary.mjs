@@ -263,8 +263,10 @@ function toExcludeMatcher(pattern) {
       source += '[^/]'
       continue
     }
-    // 正規表現の記号はそのままの文字として扱う
-    source += ch.replace(/[.+^${}()|[\]\\]/, '\\$&')
+    // 正規表現の記号はそのままの文字として扱う。
+    // ch は1文字なので g が無くても結果は同じだが、付けておく。
+    // 無いと「最初の1つしか置き換えない」と読め、実際 CodeQL もそう指摘する
+    source += ch.replace(/[.+^${}()|[\]\\]/g, '\\$&')
   }
   const regexp = new RegExp(`^${source}$`)
   return (relativePath) => regexp.test(relativePath)
