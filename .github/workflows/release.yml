@@ -63,7 +63,15 @@ jobs:
         run: |
           npm pack --dry-run --json > pack.json
           node -e '
-            const files = require("./pack.json")[0].files.map((f) => f.path)
+            const raw = require("./pack.json")
+            // npm 11 までは配列、npm 12 からはパッケージ名を鍵にした表で返る。
+            // ランナーの npm が上がったときに、黙って読めなくならないようにする
+            const entry = Array.isArray(raw) ? raw[0] : Object.values(raw)[0]
+            if (!entry || !Array.isArray(entry.files)) {
+              console.log("::error::npm pack の出力を読めません。出力の形式が変わった可能性があります")
+              process.exit(1)
+            }
+            const files = entry.files.map((f) => f.path)
             console.log("配布物:")
             files.forEach((f) => console.log("  " + f))
 
@@ -75,6 +83,12 @@ jobs:
               process.exit(1)
             }
 
+            // 校正辞書は、名前をここに書き写すと片方だけ古くなる。設定が読む先から引く
+            const nodePath = require("node:path")
+            const { createTextlintConfig } = require("./config/textlint-base.js")
+            const dictionaries = createTextlintConfig({ proofreading: true })
+              .rules.prh.rulePaths.map((f) => "dict/" + nodePath.basename(f))
+
             const required = [
               "package.json",
               "README.md",
@@ -84,6 +98,10 @@ jobs:
               "config/textlint-base.js",
               "config/textlint-desumasu.js",
               "config/markdownlint.jsonc",
+              // 辞書が欠けると、利用側の textlint は rulePaths を読めずに起動時へ落ちる
+              ...dictionaries,
+              // 同梱した辞書の許諾表示
+              "dict/LICENSE",
             ]
             const missing = required.filter((f) => !files.includes(f))
             if (missing.length > 0) {
