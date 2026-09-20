@@ -1,5 +1,7 @@
 'use strict'
 
+const path = require('node:path')
+
 // 日本語の検査規則。textlint が読む。
 //
 // 素の preset をそのまま当てると、日本語の技術文書と噛み合わない指摘が出る。
@@ -8,6 +10,21 @@
 //
 // severity を warning にした規則は、直すべきだが今すぐ止める理由もないものである。
 // textlint は error だけで終了コードを 1 にするため、警告は検査を通しつつ目に入る。
+
+// テキスト校正くん（VS Code 拡張 ics.japanese-proofreading）が使う校正辞書。
+// 辞書の名前は、その拡張の設定画面に並ぶ名前と揃えてある。
+// 辞書そのものは dict/ に同梱している。出典と許諾は dict/README.md に書いた。
+const PROOFREADING_DICTIONARIES = {
+  誤字: 'prh_idiom.yml',
+  重言: 'prh_duplicate.yml',
+  ひらく漢字: 'prh_open_close.yml',
+  冗長な表現: 'prh_redundancy.yml',
+  外来語カタカナ表記: 'prh_cho_on.yml',
+  固有名詞: 'prh_corporation.yml',
+  技術用語: 'prh_web_technology.yml',
+}
+
+const DICT_DIR = path.join(__dirname, '..', 'dict')
 
 /**
  * textlint の設定を作る。
@@ -29,6 +46,15 @@
  *   全角と半角の間のスペース。既定は 'never'（入れない）。
  *   'always' にすると入れることを求め、false にすると規則そのものを切る。
  *   コードスパン・リンク・スラッシュの前後は、この設定に関係なく入れないことを求める。
+ * @param {boolean} [options.proofreading]
+ *   テキスト校正くんの校正辞書（誤字・重言・ひらく漢字など）と康煕部首の規則を当てるか。
+ *   既定は true。
+ * @param {'error'|'warning'} [options.proofreadingSeverity]
+ *   校正辞書と康煕部首の指摘の強さ。既定は 'warning'。
+ * @param {string[]} [options.proofreadingDictionaries]
+ *   当てる辞書の名前。既定は7種すべて。
+ *   使える名前は「誤字」「重言」「ひらく漢字」「冗長な表現」「外来語カタカナ表記」
+ *   「固有名詞」「技術用語」である。
  * @returns {object} textlint の設定
  */
 function createTextlintConfig(options = {}) {
@@ -63,6 +89,38 @@ function createTextlintConfig(options = {}) {
   ) {
     throw new Error(
       `halfWidthSpacing は 'never' か 'always' か false である: ${halfWidthSpacing}`,
+    )
+  }
+
+  const proofreading = options.proofreading ?? true
+
+  const proofreadingSeverity = options.proofreadingSeverity ?? 'warning'
+  if (proofreadingSeverity !== 'error' && proofreadingSeverity !== 'warning') {
+    throw new Error(
+      `proofreadingSeverity は 'error' か 'warning' である: ${proofreadingSeverity}`,
+    )
+  }
+
+  const dictionaryNames = Object.keys(PROOFREADING_DICTIONARIES)
+  const proofreadingDictionaries =
+    options.proofreadingDictionaries ?? dictionaryNames
+  if (!Array.isArray(proofreadingDictionaries)) {
+    throw new Error(
+      `proofreadingDictionaries は配列である: ${proofreadingDictionaries}`,
+    )
+  }
+  // 名前を書き損じると、その辞書だけが黙って効かなくなる。その場で気付けるようにする
+  for (const name of proofreadingDictionaries) {
+    if (!Object.hasOwn(PROOFREADING_DICTIONARIES, name)) {
+      throw new Error(
+        `proofreadingDictionaries に知らない辞書がある: ${name}（使えるのは ${dictionaryNames.join('、')}）`,
+      )
+    }
+  }
+  // 空の配列は「全部切る」の書き方として紛らわしい。切るなら proofreading: false と書く
+  if (proofreading && proofreadingDictionaries.length === 0) {
+    throw new Error(
+      'proofreadingDictionaries が空である。辞書を当てないなら proofreading: false と書く',
     )
   }
 
@@ -167,6 +225,30 @@ function createTextlintConfig(options = {}) {
   }
   if (jtfStyle) {
     rules['preset-jtf-style'] = jtf
+  }
+
+  // テキスト校正くんの校正辞書。表記ゆれと誤用を、語の対応表で拾う。
+  //
+  // preset では拾えない種類の指摘である。preset は文の形（長さ、助詞、文体）を見るが、
+  // こちらは「アボガド → アボカド」「Github → GitHub」のように語そのものを見る。
+  //
+  // textlint からは prh というひとつの規則として動くため、severity は辞書ごとに変えられない。
+  // 辞書単位の入り切りは、読み込む rulePaths を絞ることで行う。
+  //
+  // 既定を warning にしてある。「ひらく漢字」や「外来語カタカナ表記」は書き手の好みに
+  // 属する指摘を含み、これで検査を止めると既存の文書が一斉に落ちるためである。
+  if (proofreading) {
+    rules.prh = {
+      rulePaths: proofreadingDictionaries.map((name) =>
+        path.join(DICT_DIR, PROOFREADING_DICTIONARIES[name]),
+      ),
+      severity: proofreadingSeverity,
+    }
+
+    // 康煕部首。見た目は同じでも別の文字である漢字（⽤ と 用）を拾う。
+    // 検索に掛からない、環境によって化けるといった実害があるが、
+    // preset-ja-technical-writing に無い規則なので単体で足す。
+    rules['no-kangxi-radicals'] = { severity: proofreadingSeverity }
   }
 
   return {
