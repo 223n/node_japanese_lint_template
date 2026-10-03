@@ -98,6 +98,8 @@ jobs:
               "config/textlint-base.js",
               "config/textlint-desumasu.js",
               "config/markdownlint.jsonc",
+              // 欠けると、desumasuEnding を有効にした利用側の textlint が規則を読めずに落ちる
+              "rules/desumasu-ending.js",
               // 辞書が欠けると、利用側の textlint は rulePaths を読めずに起動時へ落ちる
               ...dictionaries,
               // 同梱した辞書の許諾表示
