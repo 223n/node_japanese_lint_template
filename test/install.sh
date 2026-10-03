@@ -200,6 +200,44 @@ printf '# 見出し\n\nこれは利用側の文書である。\n' > docs/a.md
 ./node_modules/.bin/textlint . >/dev/null 2>&1
 check "ですます調のとき、である調は指摘される" 1 $?
 
+# ---- 普通体の文末を拾う規則（desumasuEnding）
+
+[ -f node_modules/@223n/lint-config-ja/rules/desumasu-ending.js ]
+check "普通体の文末の規則が配布物に入る" 0 $?
+
+# ですます調の設定には既定で入る（3.0.0から）。パッケージの名前で規則を読み、
+# no-mix-dearu-desumasu が拾わない「〜を確かめる。」を拾う
+printf '# 見出し\n\n動作を確かめる。\n' > docs/a.md
+out=$( ./node_modules/.bin/textlint . 2>&1 ); code=$?
+if [ "$code" -eq 1 ] && printf '%s' "$out" | grep -q '@223n/lint-config-ja/rules/desumasu-ending'; then
+  printf 'OK   %-46s\n' "ですます調の既定で普通体の文末を拾う"; pass=$((pass + 1))
+else
+  printf 'NG   %-46s（exit %s）\n' "ですます調の既定で普通体の文末を拾う" "$code"; printf '%s\n' "$out" | head -8; fail=$((fail + 1))
+fi
+
+printf '# 見出し\n\n動作を確かめます。\n\n| 項目 | 説明 |\n| ---- | ---- |\n| 圧縮 | 使いません |\n' > docs/a.md
+./node_modules/.bin/textlint . >/dev/null 2>&1
+check "ですます調の既定でも丁寧な文末は通る" 0 $?
+
+# desumasuEnding: false で外せる
+cat > .textlintrc.js <<'JS'
+const { createTextlintConfig } = require('@223n/lint-config-ja/config/textlint-base.js')
+module.exports = createTextlintConfig({ style: 'ですます', desumasuEnding: false })
+JS
+printf '# 見出し\n\n動作を確かめる。\n' > docs/a.md
+./node_modules/.bin/textlint . >/dev/null 2>&1
+check "desumasuEnding: false なら普通体の文末は通る" 0 $?
+
+# 以降の試験のため、ですます調の既定の設定に戻す
+cat > .textlintrc.js <<'JS'
+module.exports = require('@223n/lint-config-ja/config/textlint-desumasu.js')
+JS
+
+# 文中のコメントで、規則の名前を書いて止められる
+printf '# 見出し\n\n<!-- textlint-disable @223n/lint-config-ja/rules/desumasu-ending -->\n\n動作を確かめる。\n\n<!-- textlint-enable @223n/lint-config-ja/rules/desumasu-ending -->\n' > docs/a.md
+./node_modules/.bin/textlint . >/dev/null 2>&1
+check "普通体の文末の規則をコメントで止められる" 0 $?
+
 # ---- 文体の指摘が1つの向きだけを指す
 
 # 文体が混ざった文書で、jtf-style の 1.1.1.本文 と no-mix-dearu-desumasu が

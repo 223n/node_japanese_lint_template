@@ -1,6 +1,6 @@
 {
   "name": "@223n/lint-config-ja",
-  "version": "2.1.1",
+  "version": "3.0.0",
   "description": "日本語の技術文書を検査するための共有設定（textlint / markdownlint）と、禁じた語彙の混入を見る道具。",
   "keywords": [
     "textlint",
@@ -28,6 +28,7 @@
   },
   "files": [
     "config",
+    "rules",
     "bin",
     "dict",
     "README.md",
@@ -42,17 +43,19 @@
     "lint:md:fix": "markdownlint-cli2 --fix",
     "lint:ja": "textlint .",
     "lint:ja:fix": "textlint --fix .",
-    "test": "bash test/run.sh",
+    "test": "bash test/run.sh && node test/desumasu-ending.mjs",
     "example": "npm --prefix example install --no-audit --no-fund && npm --prefix example run lint",
     "check": "npm run lint && npm test && npm run example"
   },
   "dependencies": {
+    "kuromojin": "^3.0.1",
     "textlint-filter-rule-comments": "^1.3.0",
     "textlint-rule-no-kangxi-radicals": "^0.2.2",
     "textlint-rule-preset-ja-spacing": "^3.0.3",
     "textlint-rule-preset-ja-technical-writing": "^12.0.2",
     "textlint-rule-preset-jtf-style": "^3.0.3",
-    "textlint-rule-prh": "^6.1.0"
+    "textlint-rule-prh": "^6.1.0",
+    "textlint-util-to-string": "^3.3.4"
   },
   "peerDependencies": {
     "markdownlint-cli2": ">=0.19.0",
