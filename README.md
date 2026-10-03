@@ -137,6 +137,90 @@ GitHubの「Use this template」から作ると、設定と見本が入った状
 module.exports = require('@223n/lint-config-ja/config/textlint-desumasu.js')
 ```
 
+#### 普通体の文末も拾う
+
+上の設定で文体を見る`no-mix-dearu-desumasu`は、「である」「だ」のような明示的な常体しか拾わない。
+「〜を確かめる」「〜はない」「〜した」のような普通体の文末は素通りする。
+表のセルは、そもそも文体の検査の対象に入らない。
+そのため、ですます調の文書に普通体の文末が混ざっても検査を通る。
+
+そこで、ですます調の設定には、規則`@223n/lint-config-ja/rules/desumasu-ending`が既定で入る（3.0.0から）。
+文末を形態素解析で見て、述語に「です」「ます」が含まれない文末を報告する。
+「ました」「ません」「でした」「でしょう」「ください」は丁寧な文末として通る。
+
+| 見るもの | 見ないもの |
+| ---- | ---- |
+| 本文の段落、箇条書きの項目、表のセル | 見出し、表の見出しの行、コードブロック、コードスパン、HTML、引用、リンクのURL、URLを書いた文字列（`<…>`と裸のURL）、ページ内リンク（`#…`）の文字列、画像の代替テキスト |
+
+ページ内リンクの文字列は、目次のように見出しを写したものが多いので見ない。
+リンクだけを並べた箇条書きの項目や表のセルも、句点で終わらなければ見ない。
+
+次のものは報告しない。
+
+- 名詞、記号、数字、英字で終わるもの（「推奨」「約70GB」）
+- 閉じかぎ（`」`と`』`）や閉じの引用符（`”`、`"`、`〟`、`》`）で終わるもの。引用の可能性があるためである
+- 「あり」「なし」のように、名詞として置いた語
+- 箇条書きと表で、「〜か」で終わる断片（「WebPを書き出せるか」）。名詞のように置いた問いである
+- 箇条書きと表で、「と」「ので」「から」のような接続助詞で終わる断片（「保存すると」）。言い切っていない形である
+
+文末の注記は外してから見る。
+かっこの注記（「（4.10）」「［1］」「〔注〕」）、参照の印（「※1」）、`<sup>`の注の番号、コロン、絵文字である。
+「〜します（4.10）」は「〜します」として見るので、丁寧な文末として通る。
+自動の修正（`--fix`）は付けていない。
+
+既定は、`style`が`'ですます'`なら有効、`'である'`なら無効である。
+文末を広く見るため、2.xから上げると、既存の文書で指摘が一斉に出ることがある。
+すぐに直せないときは、`desumasuEnding`を`false`にして外す。
+
+```javascript
+// .textlintrc.js
+const { createTextlintConfig } = require('@223n/lint-config-ja/config/textlint-base.js')
+
+module.exports = createTextlintConfig({ style: 'ですます', desumasuEnding: false })
+```
+
+`style`が`'である'`のときに`true`を渡すと、設定を作る時点で止まる。
+
+規則の細かい動きは、作った設定の上で変える。
+
+```javascript
+// .textlintrc.js
+const { createTextlintConfig } = require('@223n/lint-config-ja/config/textlint-base.js')
+
+const config = createTextlintConfig({ style: 'ですます' })
+config.rules['@223n/lint-config-ja/rules/desumasu-ending'] = {
+  checkList: false, // 箇条書きを見ない
+  allow: ['^(行う|行わない)$'], // 報告しない文の正規表現。表の値として並べた語を通す
+}
+
+module.exports = config
+```
+
+| オプション | 既定 | 意味 |
+| ---- | ---- | ---- |
+| `checkTable` | `true` | 表のセルを見る |
+| `checkList` | `true` | 箇条書きの項目を見る |
+| `checkFragments` | `true` | 表のセルと箇条書きの項目で、「。」などで終わらない断片（「使わない」）の末尾も見る。`<br>`や行末の空白2つで改行した行は、行ごとに見る。本文の段落では「。」などで終わる文だけを見る |
+| `allow` | `[]` | 報告しない文の正規表現。文の全体（Markdownの記号を除き、句点は含まない）に当てる。`'/〜/i'`の形で書くとフラグを付けられる |
+
+表の値として「行う」「行わない」を並べるような文書では、`checkFragments`を`false`にすると指摘が減る。
+表に置いた人名（「わたる」）やラベル名（「対応しない」）も、動詞の形なので拾う。
+書き換えられない語は、`allow`に足すか、下のコメントで止める。
+
+オプションの型が違うとき（`"false"`のような文字列）や、知らない名前を書いたときは、検査を始める時点で止まる。
+
+文書の一部だけを止めるときは、規則の名前を書いたコメントで囲む。
+
+```markdown
+<!-- textlint-disable @223n/lint-config-ja/rules/desumasu-ending -->
+
+| 設定 | 値 |
+| ---- | ---- |
+| 自動更新 | しない |
+
+<!-- textlint-enable @223n/lint-config-ja/rules/desumasu-ending -->
+```
+
 ### 一部だけ変える
 
 設定を作る関数を直に呼ぶ。
@@ -155,6 +239,7 @@ module.exports = createTextlintConfig({
   proofreading: false,          // 校正辞書を当てる。既定は true
   proofreadingSeverity: 'error', // 校正辞書の指摘の強さ。既定は 'warning'
   proofreadingDictionaries: ['誤字'], // 当てる辞書。既定は7種すべて
+  desumasuEnding: false,        // 普通体の文末を拾う。既定はですます調なら true、である調なら false
 })
 ```
 
@@ -172,6 +257,9 @@ module.exports = createTextlintConfig({
 `'always'`にしても変わらない。
 スペースを入れる書き方に合わせる場合は、下の手順で`ja-space-around-code`、
 `ja-space-around-link`、`ja-no-space-around-slash`を切る。
+
+`desumasuEnding`は、上の「普通体の文末も拾う」に書いた。
+規則のオプションの変え方と、文書の一部だけを止める書き方もそこにある。
 
 ### 校正辞書を絞る
 
@@ -452,7 +540,9 @@ GitHub Actionsでは、`actions/checkout`が使う既定の権限が自分のリ
 **実地に確かめた結果、対応を要する危険は見つからなかった。**
 
 まず、そこに並ぶのはこのパッケージ自身のコードではない。
-直接依存は4つだが、そこから`textlint`の生態系295パッケージが広がり、警告はその全体に対して出る。
+直接依存は`package.json`の`dependencies`に並べたものだけだが、そこから`textlint`の生態系295パッケージが広がり、警告はその全体に対して出る。
+普通体の文末の規則のために直接依存へ足した`kuromojin`と`textlint-util-to-string`は、もとから依存の木に入っていたものである。
+足しても、木に新しく加わったパッケージはない。
 
 295パッケージすべてを走査した結果である。
 
@@ -481,11 +571,12 @@ GitHub Actionsでは、`actions/checkout`が使う既定の権限が自分のリ
 | `config/textlint.js` | である調の設定。既定 |
 | `config/textlint-desumasu.js` | ですます調の設定 |
 | `config/textlint-base.js` | 設定を作る関数。細かく変えるときに使う |
+| `rules/desumasu-ending.js` | 普通体の文末を拾う規則。ですます調の設定に既定で入る（`desumasuEnding`） |
 | `config/markdownlint.jsonc` | Markdownの検査規則 |
 | `dict/` | 校正辞書。出典と許諾は`dict/README.md`にある |
 | `bin/lint-vocabulary.mjs` | 語彙検査の実行ファイル |
 | `example/` | 利用見本。実際に検査が通ることを確かめられる |
-| `test/` | 語彙検査（`test/run.sh`）と導入手順（`test/install.sh`）の検証 |
+| `test/` | 語彙検査（`test/run.sh`）、普通体の文末の規則（`test/desumasu-ending.mjs`）、導入手順（`test/install.sh`）の検証 |
 | `docs/` | 規則の理由と、語彙検査の設定方法 |
 
 ## 見本を動かす
@@ -503,7 +594,7 @@ npm run example
 ```bash
 npm install
 npm run lint      # このリポジトリ自身の文書を、このリポジトリが配る規則で検査する
-npm test          # 語彙検査の検証
+npm test          # 語彙検査と、普通体の文末の規則の検証
 npm run example   # 利用見本の検証
 npm run check     # 上の3つをまとめて
 ```

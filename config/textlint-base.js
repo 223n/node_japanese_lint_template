@@ -26,6 +26,20 @@ const PROOFREADING_DICTIONARIES = {
 
 const DICT_DIR = path.join(__dirname, '..', 'dict')
 
+// 普通体の文末を拾う規則（rules/desumasu-ending.js）の名前。
+// 利用側の textlint は、この名前をパッケージの中のファイルとして require.resolve で解決する。
+// 規則の名前は報告の右端に出て、textlint-disable のコメントや上書きでもこの名前を書く。
+const DESUMASU_ENDING_RULE = '@223n/lint-config-ja/rules/desumasu-ending'
+
+// desumasuEnding を渡さなかったときの既定値。ですます調のときだけ意味を持つ。
+// true なので、style: 'ですます' を選んだ利用側では、最初から規則が効く。
+//
+// ですます調を選んだ文書に普通体の文末が混ざるのは、選んだ文体に反している。
+// それを素通りさせる方が、指摘が増えることより害が大きいと判断した（3.0.0）。
+// 版を上げると既存の文書が落ちうるため、3.0.0 は互換性の無い変更として出す。
+// 外したい利用側は desumasuEnding: false を渡す。
+const DESUMASU_ENDING_DEFAULT = true
+
 /**
  * textlint の設定を作る。
  *
@@ -55,6 +69,11 @@ const DICT_DIR = path.join(__dirname, '..', 'dict')
  *   当てる辞書の名前。既定は7種すべて。
  *   使える名前は「誤字」「重言」「ひらく漢字」「冗長な表現」「外来語カタカナ表記」
  *   「固有名詞」「技術用語」である。
+ * @param {boolean} [options.desumasuEnding]
+ *   普通体の文末（「〜を確かめる。」「〜はない。」）を拾う規則を当てるか。
+ *   既定は、style が 'ですます' なら true、'である' なら false（DESUMASU_ENDING_DEFAULT）。
+ *   true は style が 'ですます' のときだけ使える。
+ *   no-mix-dearu-desumasu は「である」「だ」しか拾わず、表のセルも見ないため、その穴を埋める。
  * @returns {object} textlint の設定
  */
 function createTextlintConfig(options = {}) {
@@ -121,6 +140,19 @@ function createTextlintConfig(options = {}) {
   if (proofreading && proofreadingDictionaries.length === 0) {
     throw new Error(
       'proofreadingDictionaries が空である。辞書を当てないなら proofreading: false と書く',
+    )
+  }
+
+  // style より後に決める。既定値が style によって変わるためである
+  const desumasuEnding =
+    options.desumasuEnding ?? (style === 'ですます' && DESUMASU_ENDING_DEFAULT)
+  if (typeof desumasuEnding !== 'boolean') {
+    throw new Error(`desumasuEnding は true か false である: ${desumasuEnding}`)
+  }
+  // である調の文書に当てると、すべての文末を指摘する。書き損じとみなして止める
+  if (desumasuEnding && style !== 'ですます') {
+    throw new Error(
+      `desumasuEnding は style: 'ですます' のときだけ使える（style は「${style}」である）`,
     )
   }
 
@@ -249,6 +281,15 @@ function createTextlintConfig(options = {}) {
     // 検索に掛からない、環境によって化けるといった実害があるが、
     // preset-ja-technical-writing に無い規則なので単体で足す。
     rules['no-kangxi-radicals'] = { severity: proofreadingSeverity }
+  }
+
+  // 普通体の文末。
+  // no-mix-dearu-desumasu は「である」「だ」のような明示的な常体しか拾わない。
+  // 「〜を確かめる。」「〜はない。」のような普通体の文末と、表のセルの中は素通りする。
+  // そのため、ですます調の文書に普通体が混ざっても検査を通ってしまう。
+  // 既定で入れるかどうかは DESUMASU_ENDING_DEFAULT で決まる。
+  if (desumasuEnding) {
+    rules[DESUMASU_ENDING_RULE] = true
   }
 
   return {
